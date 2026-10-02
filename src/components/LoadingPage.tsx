@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useResourceLoader } from '../hooks/useResourceLoader'
 import { audio } from '../lib/audio'
 
@@ -8,16 +8,47 @@ interface Props {
 }
 
 const FADE_OUT = 2
+// Longest the fade waits for the music to start, then for the page to run smoothly again
+const MUSIC_WAIT_MS = 400
+const SETTLE_MAX_MS = 700
+
+const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
+
+// Resolves once several frames in a row have arrived on time, or after `maxMs`
+function untilSmooth(maxMs: number) {
+  return new Promise<void>((resolve) => {
+    const start = performance.now()
+    let last = start
+    let smooth = 0
+    const tick = (now: number) => {
+      smooth = now - last < 25 ? smooth + 1 : 0
+      last = now
+      if (smooth >= 6 || now - start > maxMs) resolve()
+      else requestAnimationFrame(tick)
+    }
+    requestAnimationFrame(tick)
+  })
+}
 
 export function LoadingPage({ onComplete }: Props) {
   const { progress, isReady } = useResourceLoader()
   const [leaving, setLeaving] = useState(false)
+  const started = useRef(false)
 
   const start = () => {
-    if (leaving) return
-    setLeaving(true)
-    void audio.play().catch(() => {})
-    setTimeout(onComplete, FADE_OUT * 1000)
+    if (started.current) return
+    started.current = true
+    // Starting the music briefly stalls the page once, a little after playback reports it has
+    // begun (the audio device opening). The fade waits for the music and then for the page to
+    // run smoothly again (never long), so that stall lands while the screen is still rather
+    // than in the fade's first frames.
+    const music = audio.play().catch(() => {})
+    void Promise.race([music, wait(MUSIC_WAIT_MS)])
+      .then(() => untilSmooth(SETTLE_MAX_MS))
+      .then(() => {
+        setLeaving(true)
+        setTimeout(onComplete, FADE_OUT * 1000)
+      })
   }
 
   return (
