@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(npm run dev 2>&1)",
+      "Bash(npx tsc *)",
+      "Bash(npx oxlint *)",
+      "Bash(cat \"C:/Users/MIKE/AppData/Local/Temp/claude/c--Users-MIKE-Desktop-claude-portfolio-mikeerva/63da6a5c-bc45-4638-8fc0-ebfddb565785/tasks/bjsoocys8.output\" | tail -5; ls \"/c/Program Files/Google/Chrome/Application/chrome.exe\" \"/c/Program Files \\(x86\\)/Microsoft/Edge/Application/msedge.exe\" 2>&1)",
+      "Read(//c/Program Files/Google/Chrome/Application/**)",
+      "Bash('/c/Program Files/Google/Chrome/Application/chrome.exe' --headless=new --disable-gpu-sandbox --use-angle=swiftshader --enable-unsafe-swiftshader --window-size=1440,900 --virtual-time-budget=9000 --user-data-dir=C:/Users/MIKE/AppData/Local/Temp/claude/c--Users-MIKE-Desktop-claude-portfolio-mikeerva/63da6a5c-bc45-4638-8fc0-ebfddb565785/scratchpad/chrome-prof --screenshot=C:/Users/MIKE/AppData/Local/Temp/claude/c--Users-MIKE-Desktop-claude-portfolio-mikeerva/63da6a5c-bc45-4638-8fc0-ebfddb565785/scratchpad/slider.png 'http://localhost:5174/#work/web-design')",
+      "Bash(npm init *)",
+      "Bash(npm i *)",
+      "Bash(node shot.mjs)"
+    ]
+  }
+}
