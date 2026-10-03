@@ -4,10 +4,14 @@ import { useResourceLoader } from '../hooks/useResourceLoader'
 import { audio } from '../lib/audio'
 
 interface Props {
+  // The screen has started lifting enough for the Hero beneath to be seen forming
+  onStart: () => void
   onComplete: () => void
 }
 
 const FADE_OUT = 2
+// When, into the fade, the Hero starts forming
+const START_AFTER_MS = 400
 // Longest the fade waits for the music to start, then for the page to run smoothly again
 const MUSIC_WAIT_MS = 400
 const SETTLE_MAX_MS = 700
@@ -30,7 +34,7 @@ function untilSmooth(maxMs: number) {
   })
 }
 
-export function LoadingPage({ onComplete }: Props) {
+export function LoadingPage({ onStart, onComplete }: Props) {
   const { progress, isReady } = useResourceLoader()
   const [leaving, setLeaving] = useState(false)
   const started = useRef(false)
@@ -47,6 +51,8 @@ export function LoadingPage({ onComplete }: Props) {
       .then(() => untilSmooth(SETTLE_MAX_MS))
       .then(() => {
         setLeaving(true)
+        // The fade eases in, so the Hero only starts to show a moment after it begins
+        setTimeout(onStart, START_AFTER_MS)
         setTimeout(onComplete, FADE_OUT * 1000)
       })
   }

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } f
 import { config, type CategoryId } from '../config'
 import { FACETS, facetPath, objectLayout, perspective, place, STATE_COUNT, yawOf } from '../lib/objectStates'
 import { object } from '../lib/scene'
+import { Projects } from './Projects'
 
 const ease = [0.22, 1, 0.36, 1] as const
 const mod = (n: number, m: number) => ((n % m) + m) % m
@@ -20,7 +21,14 @@ const SNAP = { type: 'spring', stiffness: 60, damping: 16, restDelta: 0.001 } as
 // How far (object units) the resting name floats forward off the mass, toward the viewer
 const FRONT_LIFT = 0.3
 
+// How far below the mass's centre the drag hint sits, in mass units (its outline reaches ~1.5)
+const HINT_GAP = 1.75
 const indexOf = (id: CategoryId) => config.categories.findIndex((c) => c.id === id)
+// The categories run the other way round the turn: dragging right turns the mass's front to
+// the right, which lowers the progress, and that must bring the next category (01 → 02 → 03 →
+// 04 → 01). So the facet facing the viewer at state n shows category -n, and back.
+const categoryAt = (facet: number) => mod(-facet, STATE_COUNT)
+const facetOf = (category: number) => mod(-category, STATE_COUNT)
 // The integer state showing category `index` that is closest to `p`
 const nearestState = (p: number, index: number) => Math.round((p - index) / STATE_COUNT) * STATE_COUNT + index
 
@@ -36,12 +44,15 @@ function isEnterTarget(ev: { clientX: number; clientY: number; target: EventTarg
 
 interface Props {
   selected: CategoryId | null
+  // Entered project of the selected category (index), or null
+  project: number | null
   onSelect: (id: CategoryId) => void
   onClose: () => void
+  onProject: (id: CategoryId, index: number | null) => void
 }
 
-export function Work({ selected, onSelect, onClose }: Props) {
-  const progress = useMotionValue(selected ? nearestState(object.progress, indexOf(selected)) : Math.round(object.progress))
+export function Work({ selected, project, onSelect, onClose, onProject }: Props) {
+  const progress = useMotionValue(selected ? nearestState(object.progress, facetOf(indexOf(selected))) : Math.round(object.progress))
   const [nearest, setNearest] = useState(() => Math.round(progress.get()))
   const [offState, setOffState] = useState(false)
   const [dragging, setDragging] = useState(false)
@@ -50,12 +61,24 @@ export function Work({ selected, onSelect, onClose }: Props) {
   const [overTarget, setOverTarget] = useState(false)
   const moved = useRef(false)
   const sectionRef = useRef<HTMLElement>(null)
+  // The drag hint's place: under the mass's resting position (not its live float or zoom), so
+  // it never moves; recomputed only when the window changes size
+  const hintAt = () => {
+    const { cy, unit } = objectLayout(window.innerWidth, window.innerHeight)
+    return Math.round(cy + unit * HINT_GAP)
+  }
+  const [hintTop, setHintTop] = useState(hintAt)
+  useEffect(() => {
+    const onResize = () => setHintTop(hintAt())
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
   // Each name exists twice: under the canvas (hidden by the mass) and above it
   const backRefs = useRef<(HTMLDivElement | null)[]>([])
   const frontRefs = useRef<(HTMLDivElement | null)[]>([])
 
   const active = mod(nearest, STATE_COUNT)
-  const category = config.categories[active]
+  const category = config.categories[categoryAt(active)]
   const [firstActive] = useState(active)
   const settled = arrived && !dragging && !offState
   const hovering = settled && overTarget && !selected
@@ -86,7 +109,7 @@ export function Work({ selected, onSelect, onClose }: Props) {
   // The names ride the canvas's own frame: same eased turn, sway, tilt and zoom as the mass
   useEffect(() => {
     let lastUnit = 0
-    object.onFrame = ({ turn, sway, tilt, zoom, cx, cy, unit }) => {
+    object.onFrame = ({ turn, sway, tilt, zoom, cx, cy, unit, split }) => {
       const portrait = window.innerHeight > window.innerWidth
       if (unit !== lastUnit) {
         // Type is sized against the mass; on narrow screens it takes a larger share of it
@@ -122,7 +145,9 @@ export function Work({ selected, onSelect, onClose }: Props) {
           smoothstep(0.02, 0.1, Math.abs(Math.cos(lean))) *
           (1 - 0.5 * smoothstep(0, -1, z)) *
           (1 - smoothstep(0.75, 0.95, Math.abs(phi) / Math.PI)) *
-          (1 - smoothstep(0.5, 1, away))
+          (1 - smoothstep(0.5, 1, away)) *
+          // ...and the category's name gives way as its mass divides into projects
+          (1 - smoothstep(0.02, 0.35, split))
         // The layer swap happens at the side, where the card is edge-on, so it can't be seen
         const inFront = smoothstep(-0.1, 0.1, z)
         const transform =
@@ -139,15 +164,26 @@ export function Work({ selected, onSelect, onClose }: Props) {
     }
   }, [])
 
+  // Selected: the mass comes to rest exactly on the category, then divides into its projects
   useEffect(() => {
-    object.selected = selected !== null
-    if (selected && mod(Math.round(progress.get()), STATE_COUNT) !== indexOf(selected)) {
-      animate(progress, nearestState(progress.get(), indexOf(selected)), SNAP)
+    object.open = selected !== null
+    if (selected) {
+      object.projects = config.projects[selected].length
+      object.category = selected
+      const target = nearestState(progress.get(), facetOf(indexOf(selected)))
+      if (progress.get() !== target) animate(progress, target, SNAP)
     }
     return () => {
-      object.selected = false
+      object.open = false
     }
   }, [selected, progress])
+
+  useEffect(() => {
+    object.focus = project ?? -1
+    return () => {
+      object.focus = -1
+    }
+  }, [project])
 
   useEffect(() => {
     object.hover = hovering
@@ -156,10 +192,15 @@ export function Work({ selected, onSelect, onClose }: Props) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (selected) {
-        if (e.key === 'Escape') onClose()
+        // One level back: out of the project, or the fragments merge into the category again
+        if (e.key === 'Escape') {
+          if (project !== null) onProject(selected, null)
+          else onClose()
+        }
         return
       }
-      const step = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 0
+      // Right/down: the next category; left/up: the previous one (the same way as dragging)
+      const step = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? -1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? 1 : 0
       if (step) {
         setExplored(true)
         snapTo(Math.round(progress.get()) + step)
@@ -213,13 +254,16 @@ export function Work({ selected, onSelect, onClose }: Props) {
     window.addEventListener('pointercancel', up)
   }
 
+  // Facet i: placed for its orientation of the mass, showing the category mapped to it
   const name = (i: number, layer: 'back' | 'front') => {
-    const { at, lines } = FACETS[i]
+    const { at } = FACETS[i]
+    const shownCategory = categoryAt(i)
+    const { lines } = FACETS[shownCategory]
     const refs = layer === 'front' ? frontRefs : backRefs
     const isActive = i === active
     const enterable = layer === 'front' && isActive && settled && !selected
     const shown = arrived && (!selected || isActive)
-    const delay = selected || i === firstActive ? 0 : 0.5 + mod(i - firstActive, STATE_COUNT) * 0.15
+    const delay = selected || i === firstActive ? 0 : 0.5 + mod(firstActive - i, STATE_COUNT) * 0.15
     return (
       <div
         key={i}
@@ -231,7 +275,7 @@ export function Work({ selected, onSelect, onClose }: Props) {
       >
         <div style={{ opacity: shown ? 1 : 0, transition: `opacity 1.4s cubic-bezier(0.22, 1, 0.36, 1) ${delay}s` }}>
           <p className="mb-[0.9em] whitespace-nowrap text-[10px] font-light uppercase tabular-nums tracking-[0.35em] text-white/50 sm:text-[11px]">
-            {pad(i + 1)} / {pad(STATE_COUNT)}
+            {pad(shownCategory + 1)} / {pad(STATE_COUNT)}
             {layer === 'front' && isActive && (
               <span
                 className="text-cream transition-opacity duration-500"
@@ -278,8 +322,16 @@ export function Work({ selected, onSelect, onClose }: Props) {
         {indices.map((i) => name(i, 'front'))}
       </motion.div>
 
+      <AnimatePresence>
+        {selected && (
+          <motion.div key={selected} exit={layerExit} className="contents">
+            <Projects category={selected} project={project} onProject={(index) => onProject(selected, index)} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <p className="sr-only" aria-live="polite">
-        {category.name}, {active + 1} of {STATE_COUNT}
+        {category.name}, {categoryAt(active) + 1} of {STATE_COUNT}
       </p>
       <button type="button" className="sr-only" disabled={!!selected} onClick={() => onSelect(category.id)}>
         Enter {category.name}
@@ -287,36 +339,42 @@ export function Work({ selected, onSelect, onClose }: Props) {
 
       <motion.div exit={layerExit} className="pointer-events-none absolute inset-0 z-20">
         <AnimatePresence>
-          {selected && (
+          {selected && project === null && (
             <motion.button
               type="button"
               onClick={onClose}
               onPointerDown={(e) => e.stopPropagation()}
               initial={{ opacity: 0, x: -8 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.6, ease }}
-              className="pointer-events-auto absolute left-5 top-7 text-base font-semibold lowercase text-cream transition-opacity duration-300 hover:opacity-70 sm:left-8 sm:top-10 sm:text-lg"
+              animate={{ opacity: 1, x: 0, transition: { duration: 0.6, ease, delay: 1.6 } }}
+              exit={{ opacity: 0, transition: { duration: 0.3 } }}
+              className="pointer-events-auto absolute left-5 top-24 text-base font-semibold lowercase text-cream transition-opacity duration-300 hover:opacity-70 sm:left-8 sm:top-28 sm:text-lg"
             >
               ← all work
             </motion.button>
           )}
         </AnimatePresence>
+      </motion.div>
 
-        <div className="absolute inset-x-0 bottom-7 flex justify-center sm:bottom-9">
-          <AnimatePresence>
-            {arrived && !explored && !selected && (
-              <motion.p
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1, transition: { duration: 1.2, delay: 1.2 } }}
-                exit={{ opacity: 0, transition: { duration: 0.8 } }}
-                className="text-[10px] font-light uppercase tracking-[0.4em] text-white/30"
-              >
-                drag to explore
-              </motion.p>
-            )}
-          </AnimatePresence>
-        </div>
+      {/* The drag hint: a still unit set just under the mass's resting place, in the layer behind
+          the canvas, so the mass and fragments cover it wherever they pass over it */}
+      <motion.div aria-hidden exit={layerExit} className="pointer-events-none absolute inset-x-0 z-0 flex justify-center" style={{ top: hintTop }}>
+        <AnimatePresence>
+          {arrived && !explored && !selected && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1, transition: { duration: 1.2, delay: 1.2 } }}
+              exit={{ opacity: 0, transition: { duration: 0.8 } }}
+              className="flex flex-col items-center gap-3 text-white/35"
+            >
+              {/* A turn around the mass's vertical axis: a flat arc, travelling to the right */}
+              <svg viewBox="0 0 48 17" className="block h-[17px] w-12" fill="none" stroke="currentColor" strokeWidth="1">
+                <path d="M41 4.2C37.6 2.2 31.3 1 24 1 12.4 1 3 3.9 3 7.5S12.4 14 24 14c5.6 0 10.7-.7 14.4-1.8" strokeLinecap="round" />
+                <path d="M35.2 10.1l3.4 2.1-2.6 2.9" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <p className="text-[10px] font-light uppercase leading-none tracking-[0.4em]">drag to explore</p>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
     </section>
   )

@@ -86,6 +86,9 @@ export const MASS: Blob[] = [
 // there, so it can pass close), `depth` how far behind the mass it goes, and `lift` its height
 // at the side as a share of its resting height, so it mostly travels sideways and in depth
 // rather than up and down.
+// Entries are indexed two ways: the placement fields (`at` … `lift`) by facet, i.e. the mass's
+// orientation at state n, and `lines` by category. Work shows category -n on facet n, so the
+// order runs 01 → 02 → 03 → 04 when dragging right.
 export const FACETS: {
   at: Vec3
   atPortrait: Vec3
@@ -95,7 +98,7 @@ export const FACETS: {
   lines: string[]
 }[] = [
   { at: [-0.33, -0.4, 1.2], atPortrait: [-0.3, -0.4, 1.2], side: 2.0, depth: 1.3, lift: 0.75, lines: ['Brand', 'Identity'] },
-  { at: [0.4, 0.44, 1.2], atPortrait: [0.35, 0.44, 1.2], side: 1.95, depth: 1.4, lift: 0.7, lines: ['UI / UX'] },
+  { at: [0.04, 0.46, 1.2], atPortrait: [0.02, 0.44, 1.2], side: 1.95, depth: 1.4, lift: 0.7, lines: ['UI / UX'] },
   { at: [0.22, -0.33, 1.2], atPortrait: [0.18, -0.33, 1.2], side: 2.05, depth: 1.25, lift: 0.8, lines: ['Art', 'Direction'] },
   { at: [-0.18, 0.4, 1.2], atPortrait: [-0.12, 0.4, 1.2], side: 2.0, depth: 1.35, lift: 0.7, lines: ['Creative', 'Development'] },
 ]

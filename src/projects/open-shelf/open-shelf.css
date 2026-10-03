@@ -1,0 +1,86 @@
+/* OPEN SHELF case study. Scoped under .os, sized by the project panel (cqw / cqh). */
+
+.os {
+  --paper: #f4f3ef;
+  --card: #fbfaf6;
+  --ink: #111214;
+  --blue: #1f45ff;
+  --blue-soft: #dfe5ff;
+  --rule: rgba(17, 18, 20, 0.14);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'Inter Tight', 'Inter', sans-serif;
+  font-feature-settings: 'tnum' 1;
+}
+.os-mono {
+  font-family: 'DM Mono', ui-monospace, monospace;
+  letter-spacing: 0.01em;
+}
+.os-grid {
+  background-image: linear-gradient(var(--rule) 1px, transparent 1px);
+  background-size: 100% 28px;
+}
+
+/* Lend / return: things slide out of their row and back in, along the shelf */
+.os-lend {
+  transform: translateX(-6%);
+  opacity: 0;
+  transition:
+    transform 0.9s cubic-bezier(0.3, 0, 0.1, 1),
+    opacity 0.9s cubic-bezier(0.3, 0, 0.1, 1);
+  transition-delay: var(--d, 0s);
+}
+.os-lend.is-in {
+  transform: none;
+  opacity: 1;
+}
+
+/* the due-date stamp lands: quick, slightly rotated, a little ink spread */
+.os-stamp {
+  opacity: 0;
+  transform: scale(1.35) rotate(var(--r, -8deg));
+  transition:
+    opacity 0.18s ease-out,
+    transform 0.32s cubic-bezier(0.2, 1.4, 0.4, 1);
+  transition-delay: var(--d, 0s);
+}
+.os-stamp.is-in {
+  opacity: 1;
+  transform: scale(1) rotate(var(--r, -8deg));
+}
+
+/* the motion principle: an item slides out of its shelf (lend), waits, slides back (return) */
+.os-demo .book {
+  animation: os-book 5.5s cubic-bezier(0.3, 0, 0.1, 1) infinite paused;
+}
+.os-demo.is-in .book {
+  animation-play-state: running;
+}
+@keyframes os-book {
+  0%, 10% { transform: translateY(0); }
+  32%, 62% { transform: translateY(-115%); }
+  84%, 100% { transform: translateY(0); }
+}
+.os-demo .label {
+  animation: os-label 5.5s steps(1) infinite paused;
+}
+.os-demo.is-in .label {
+  animation-play-state: running;
+}
+@keyframes os-label {
+  0%, 31% { opacity: 0.25; }
+  32%, 83% { opacity: 1; }
+  84%, 100% { opacity: 0.25; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .os-lend,
+  .os-stamp {
+    opacity: 1 !important;
+    transform: rotate(var(--r, -8deg)) !important;
+    transition: none !important;
+  }
+  .os-demo * {
+    animation: none !important;
+  }
+}
