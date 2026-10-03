@@ -451,7 +451,7 @@ function App() {
           <Attack className="relative aspect-[9/18.5] overflow-hidden rounded-[18px] bg-[var(--ink)] p-[8%] text-[var(--grey)] shadow-[0_30px_50px_-30px_rgba(14,15,14,0.6)]">
             <p className="dc-small text-[var(--grey)]/55">Now — Lower basin</p>
             <div className="mt-[18%]">
-              <Echo word="Halvard" count={3} size="clamp(18px, 3.4cqw, 34px)" tone="var(--acid)" />
+              <Echo word="Halvard" count={3} size="clamp(14px, 2.5cqw, 26px)" tone="var(--acid)" />
             </div>
             <div className="absolute inset-x-[8%] bottom-[22%]">
               <div className="flex h-[3px] bg-[var(--grey)]/15">

@@ -92,6 +92,7 @@
 .fold-lines > *:nth-child(3) > span { transition-delay: 0.16s; }
 .fold-lines > *:nth-child(4) > span { transition-delay: 0.24s; }
 .fold-lines > *:nth-child(5) > span { transition-delay: 0.32s; }
+.fold-lines > *:nth-child(6) > span { transition-delay: 0.4s; }
 
 /* ---------- motion principles (play while in view) ---------- */
 

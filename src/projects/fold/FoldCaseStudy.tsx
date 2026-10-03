@@ -1,5 +1,5 @@
-import type { CSSProperties, ReactNode } from 'react'
-import { useInView, useScrollProgress } from '../scroll'
+import { useContext, useEffect, useRef, type CSSProperties, type ReactNode } from 'react'
+import { ScrollerContext, useInView, useScrollProgress } from '../scroll'
 import { PHOTOS, photoSrc, type PhotoKey } from './assets'
 import './fold.css'
 import { PATH, VIEWBOX } from './wordmark'
@@ -10,7 +10,6 @@ import { PATH, VIEWBOX } from './wordmark'
 // 05 Packaging · 06 Physical space · 07 Menu / print · 08 Campaign · 09 Digital ·
 // 10 Motion principles · 11 Closing
 
-const VERBS = ['Fold', 'Layer', 'Wrap', 'Compress', 'Open', 'Tear', 'Reveal', 'Break', 'Share']
 const LINE = 'Brunch / Bakery / Specialty coffee / All day'
 
 export function FoldCaseStudy() {
@@ -111,35 +110,72 @@ function Corner({ size = '9cqw', className = '' }: { size?: string; className?: 
 
 // ---------------------------------------------------------------- 00 Opening
 
+// How far the reader has scrolled through the opening (0 at the top, 1 once it has gone),
+// written to the section as --p so its layers can drift at different rates
+function useOpeningProgress() {
+  const ref = useRef<HTMLElement>(null)
+  const scroller = useContext(ScrollerContext)
+  useEffect(() => {
+    const panel = scroller?.current
+    const el = ref.current
+    if (!panel || !el) return
+    let raf = 0
+    const update = () => {
+      raf = 0
+      el.style.setProperty('--p', Math.min(Math.max(panel.scrollTop / Math.max(el.offsetHeight, 1), 0), 1).toFixed(4))
+    }
+    const onScroll = () => {
+      if (!raf) raf = requestAnimationFrame(update)
+    }
+    update()
+    panel.addEventListener('scroll', onScroll, { passive: true })
+    return () => {
+      panel.removeEventListener('scroll', onScroll)
+      cancelAnimationFrame(raf)
+    }
+  }, [scroller])
+  return ref
+}
+
 function Opening() {
+  const ref = useOpeningProgress()
   return (
-    <section className="relative overflow-hidden bg-[var(--ink)] text-[var(--paper)]" style={{ height: '100cqh', minHeight: 520 }}>
+    // the photograph's own black, so where it ends there is no step in tone
+    <section ref={ref} className="relative overflow-hidden bg-[#090806] text-[var(--paper)]" style={{ height: '100cqh', minHeight: 520 }}>
+      {/* The campaign photograph, full bleed. Its black merges with the section's own black, so
+          it has no visible edge. Wide panels: the whole hero, cropped to keep the cup on the
+          right and the left side empty for the wordmark. Narrow panels: the lower part, so the
+          cup stays whole and the wordmark sits in the black above it. It drifts and swells very
+          slightly as the reader scrolls on. */}
+      <div
+        data-scroll
+        className="absolute inset-x-0 bottom-0 h-[56%] [mask-image:linear-gradient(to_bottom,transparent,black_22%)] @2xl:inset-0 @2xl:h-full @2xl:[mask-image:none]"
+        style={{ transform: 'translateY(calc(var(--p, 0) * 3cqh)) scale(calc(1 + var(--p, 0) * 0.03))', transformOrigin: '70% 60%' }}
+      >
+        <img
+          src={photoSrc('heroCoffee')}
+          alt={PHOTOS.heroCoffee.alt}
+          decoding="async"
+          className="block size-full object-cover object-[78%_50%] @2xl:object-[56%_50%]"
+        />
+      </div>
+
       <div className="fold-mono absolute inset-x-[5cqw] top-[4.5cqh] flex justify-between text-[10px] text-[var(--paper)]/60 @2xl:text-[11px]">
         <span>Case study 01 / 04</span>
         <span className="text-right">Brand identity / Hospitality / 2026</span>
       </div>
 
-      {/* the photograph, its lower-left corner folded back to the signal colour */}
-      <In
-        kind="drop"
-        className="absolute right-0 top-[11cqh] h-[44cqh] w-full @2xl:right-[4cqw] @2xl:h-[62cqh] @2xl:w-[56cqw]"
+      {/* the wordmark and its line, held together in the black on the left; they rise a little
+          faster than the photograph as the reader scrolls, for depth */}
+      <div
+        data-scroll
+        className="absolute left-[5cqw] top-[11cqh] w-[68cqw] @2xl:top-auto @2xl:bottom-[24cqh] @2xl:w-[47cqw]"
+        style={{ transform: 'translateY(calc(var(--p, 0) * -7cqh))' }}
       >
-        <div className="relative size-full" style={{ clipPath: 'polygon(0 0, 100% 0, 100% 100%, 22% 100%, 0 70%)' }}>
-          <Photo k="croissantMacro" className="size-full" />
-        </div>
-        <span
-          aria-hidden
-          className="absolute bottom-0 left-0 h-[30%] w-[22%] bg-[var(--signal)]"
-          style={{ clipPath: 'polygon(0 0, 100% 100%, 0 100%)' }}
-        />
-      </In>
-
-      <In kind="open" delay={0.35} className="absolute bottom-[19cqh] left-[5cqw] w-[78cqw] @2xl:bottom-[13cqh] @2xl:w-[60cqw]">
-        <Mark className="w-full text-[var(--paper)]" />
-      </In>
-
-      <div className="absolute bottom-[4.5cqh] left-[9cqw] right-[5cqw] flex flex-col gap-3 @2xl:flex-row @2xl:items-end @2xl:justify-between">
-        <In kind="lines" delay={0.6} className="fold-display" style={{ fontSize: 'max(22px, 3.3cqw)' }}>
+        <In kind="open" delay={0.35}>
+          <Mark className="w-full text-[var(--paper)]" />
+        </In>
+        <In kind="lines" delay={0.6} className="fold-display mt-[3.5cqh]" style={{ fontSize: 'max(20px, 2.9cqw)' }}>
           <span>
             <span>Fold is a verb</span>
           </span>
@@ -147,109 +183,93 @@ function Opening() {
             <span className="text-[var(--signal)]">before it is a logo.</span>
           </span>
         </In>
-        <p className="fold-mono max-w-[32ch] text-[10px] text-[var(--paper)]/55 @2xl:text-right @2xl:text-[11px]">{LINE}</p>
+        {/* narrow panels: kept with the wordmark, clear of the photograph */}
+        <p className="fold-mono mt-[2.5cqh] max-w-[32ch] text-[10px] text-[var(--paper)]/55 @2xl:hidden">{LINE}</p>
       </div>
+
+      <p className="fold-mono absolute bottom-[4.5cqh] left-[9cqw] hidden max-w-[32ch] text-[11px] text-[var(--paper)]/55 @2xl:block">
+        {LINE}
+      </p>
     </section>
   )
 }
 
 // ---------------------------------------------------------------- 01 The idea
 
+// The way the city moves: an asymmetric spread. The concept column holds its place while the
+// city photograph and then the cup and bag pass beside it.
+const BEHAVIOUR = ['Grab', 'Carry', 'Open', 'Fold', 'Eat', 'Go']
+
 function Idea() {
+  const carry = useScrollProgress<HTMLDivElement>('cross')
   return (
-    <section className="bg-[var(--paper)]">
-      {/* two kinds of folding, one gesture */}
-      <div className="relative px-[5cqw] pb-[10cqh] pt-[9cqh]">
-        <Head n="01" title="The idea" />
-        <div className="relative mt-[6cqh] grid grid-cols-2 gap-[4cqw] @2xl:gap-[10cqw]">
-          <figure>
-            <In kind="drop">
-              <Photo k="pastryTear" className="aspect-[3/4.4] w-full" />
-            </In>
-            <figcaption className="fold-display mt-4" style={{ fontSize: 'max(20px, 4.6cqw)' }}>
-              Food folding
-            </figcaption>
-            <p className="fold-mono mt-2 max-w-[30ch] text-[10px] text-[var(--ink)]/60 @2xl:text-[11px]">
-              Dough is folded into layers, layers are torn open, food is pulled apart and shared.
+    <section
+      className="relative px-[5cqw] pb-[20cqh] pt-[14cqh]"
+      style={{ background: '#F4EDE2', color: '#111111', ['--signal' as string]: '#E6452E', ['--ink' as string]: '#111111' }}
+    >
+      <div className="grid grid-cols-1 gap-[7cqh] @2xl:grid-cols-[0.9fr_1.5fr_0.78fr] @2xl:gap-x-[3cqw] @2xl:gap-y-0">
+        {/* LEFT — the concept, held while the photographs pass */}
+        <div className="@2xl:sticky @2xl:top-[9cqh] @2xl:self-start">
+          <Head n="01" title="The idea" />
+          <In kind="lines" className="fold-display mt-[5cqh] whitespace-nowrap" style={{ fontSize: 'max(38px, 4.5cqw)' }}>
+            <span>
+              <span>Built around</span>
+            </span>
+            <span>
+              <span>the way the</span>
+            </span>
+            <span>
+              <span className="text-[var(--signal)]">city moves.</span>
+            </span>
+          </In>
+          <In kind="rise" delay={0.2} className="mt-[5cqh] max-w-[34ch] text-[13px] leading-relaxed text-[#111111]/75 @2xl:text-[14px]">
+            <p>
+              FOLD lives in the everyday movements of the city — grabbing a coffee, carrying a bag, opening a wrapper, eating on
+              the move and getting on with the day.
             </p>
-          </figure>
-          <figure className="mt-[12cqh]">
-            <In kind="drop" delay={0.15}>
-              <Photo k="wrapPaper" className="aspect-[3/4.4] w-full" />
+            <p className="mt-3">The identity comes from these behaviours, not from decorative fold graphics.</p>
+          </In>
+          <div className="mt-[5cqh] border-t border-[#111111]/15 pt-[3cqh]">
+            <In kind="lines" className="fold-display flex flex-wrap gap-x-[1.1cqw] gap-y-1" style={{ fontSize: 'max(18px, 2.1cqw)' }}>
+              {BEHAVIOUR.map((word, i) => (
+                <span key={word}>
+                  <span className={word === 'Fold' ? 'text-[var(--signal)]' : ''}>
+                    {word}
+                    {i < BEHAVIOUR.length - 1 && <span className="ml-[1.1cqw] text-[#111111]/25">/</span>}
+                  </span>
+                </span>
+              ))}
             </In>
-            <figcaption className="fold-display mt-4" style={{ fontSize: 'max(20px, 4.6cqw)' }}>
-              Paper folding
-            </figcaption>
-            <p className="fold-mono mt-2 max-w-[30ch] text-[10px] text-[var(--ink)]/60 @2xl:text-[11px]">
-              Paper is folded around food, opened, torn, kept. The packaging is the same gesture.
-            </p>
-          </figure>
-          <span
-            aria-hidden
-            className="fold-display pointer-events-none absolute left-1/2 top-[30%] -translate-x-1/2 text-[var(--signal)]"
-            style={{ fontSize: '24cqw' }}
-          >
-            ×
-          </span>
+          </div>
+          <p className="fold-mono mt-[5cqh] hidden max-w-[30ch] text-[10px] text-[#111111]/55 @2xl:block">{LINE}</p>
         </div>
-      </div>
 
-      <Vocabulary />
-
-      {/* the line, set on layers */}
-      <div className="relative overflow-hidden px-[5cqw] py-[14cqh]">
-        <div aria-hidden className="absolute left-[8cqw] right-[-6cqw] top-[18cqh] h-[34cqh] -rotate-[4deg] bg-[var(--kraft-light)]" />
-        <div aria-hidden className="absolute left-[-4cqw] right-[14cqw] top-[24cqh] h-[30cqh] rotate-[2deg] bg-[var(--signal)]" />
-        <In kind="lines" className="fold-display relative text-[var(--paper)]" style={{ fontSize: 'max(34px, 8.4cqw)' }}>
-          <span>
-            <span>Good things</span>
-          </span>
-          <span>
-            <span>happen between</span>
-          </span>
-          <span>
-            <span className="text-[var(--ink)]">the layers.</span>
-          </span>
-        </In>
-      </div>
-    </section>
-  )
-}
-
-// The nine verbs light up one by one as the chapter is held in place
-function Vocabulary() {
-  const ref = useScrollProgress<HTMLDivElement>('pin')
-  return (
-    <div ref={ref} className="relative" style={{ height: '240cqh' }}>
-      <div className="sticky top-0 grid grid-cols-1 items-center gap-[4cqh] overflow-hidden px-[5cqw] @2xl:grid-cols-[1fr_1.4fr]" style={{ height: '100cqh' }}>
-        <div className="max-w-[40ch] pt-[8cqh] @2xl:pt-0">
-          <p className="fold-mono text-[10px] text-[var(--ink)]/55 @2xl:text-[11px]">The vocabulary</p>
-          <p className="mt-4 text-[13px] leading-relaxed text-[var(--ink)]/80 @2xl:text-[15px]">
-            Everything FOLD makes starts from one gesture. The identity doesn't borrow the shape of a fold — it takes the
-            verb, and lets every part of the brand do something: hide, open, press, tear, give.
+        {/* CENTRE — the city: the largest picture, drifting a touch slower than the page */}
+        <div ref={carry} className="@2xl:mt-[10cqh]">
+          <In kind="drop">
+            <div data-scroll style={{ transform: 'translateY(calc((var(--p, 0.5) - 0.5) * 5cqh))' }}>
+              <Photo k="cityCarry" className="aspect-[2/3] w-full" />
+            </div>
+          </In>
+          <p className="fold-mono mt-3 flex justify-between text-[10px] text-[#111111]/55">
+            <span>Athens, 08:40</span>
+            <span>Grab / Carry</span>
           </p>
         </div>
-        <ol className="fold-display" aria-label="Fold, layer, wrap, compress, open, tear, reveal, break, share">
-          {VERBS.map((verb, i) => (
-            <li
-              key={verb}
-              data-scroll
-              className="flex items-baseline gap-4"
-              style={{
-                fontSize: 'min(7.6cqh, 8.5cqw)',
-                opacity: `calc(0.14 + 0.86 * clamp(0, var(--p, 0) * 9.6 - ${i}, 1))`,
-                transform: `translateX(calc((1 - clamp(0, var(--p, 0) * 9.6 - ${i}, 1)) * -3cqw))`,
-              }}
-            >
-              <span className="fold-mono text-[10px] text-[var(--ink)]/50" style={{ fontFamily: 'IBM Plex Mono' }}>
-                {String(i + 1).padStart(2, '0')}
-              </span>
-              <span className={i === 0 ? 'text-[var(--signal)]' : ''}>{verb}</span>
-            </li>
-          ))}
-        </ol>
+
+        {/* RIGHT — the objects: smaller, later, lower */}
+        <div className="ml-[22%] @2xl:ml-0 @2xl:mt-[54cqh]">
+          <In kind="drop" delay={0.2}>
+            <Photo k="cityCupBag" className="aspect-[2/3] w-full" />
+          </In>
+          <p className="fold-mono mt-3 flex justify-between text-[10px] text-[#111111]/55">
+            <span>Cup + bag</span>
+            <span>Open / Fold</span>
+          </p>
+          <p className="fold-mono mt-[4cqh] max-w-[30ch] text-[10px] text-[#111111]/55 @2xl:hidden">{LINE}</p>
+        </div>
       </div>
-    </div>
+    </section>
   )
 }
 

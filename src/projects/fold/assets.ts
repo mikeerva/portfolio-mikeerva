@@ -4,6 +4,11 @@
 // over the same filename — no code changes. Recommended sizes are for the final files.
 // See public/projects/fold/README.md.
 export const PHOTOS = {
+  // FINAL production photograph (the opening hero)
+  heroCoffee: { file: 'hero-coffee.jpg', alt: 'A FOLD iced-coffee cup tipping in mid-air, coffee and ice splashing out against black', size: '1677 × 938' },
+  // FINAL production photographs (01 — The idea)
+  cityCarry: { file: 'city-carry.jpg', alt: 'A hand carrying a FOLD takeaway cup down a sunlit Athens street, traffic blurred behind', size: '1024 × 1536' },
+  cityCupBag: { file: 'city-cup-bag.jpg', alt: 'A FOLD paper cup and kraft takeaway bag on a weathered street bench, Athens in the background', size: '1024 × 1536' },
   croissantMacro: { file: 'croissant-macro.jpg', alt: 'Laminated croissant torn open, layers and crumbs in warm side light', size: '2400 × 1650' },
   pastryTear: { file: 'pastry-tear.jpg', alt: 'A hand tearing a pastry apart, cheese stretching between the halves', size: '1600 × 2550' },
   sandwichWrap: { file: 'sandwich-wrap.jpg', alt: 'Layered sandwich half-wrapped in printed FOLD paper', size: '2400 × 1780' },

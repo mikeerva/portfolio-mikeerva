@@ -1,0 +1,53 @@
+/* PLINTH case study. Scoped under .pl, sized by the project panel (cqw / cqh).
+   One type size only — 15px — everywhere. Hierarchy comes from position and space, never size. */
+
+.pl {
+  --white: #f7f6f3;
+  --ink: #1a1a19;
+  --mute: rgba(26, 26, 25, 0.45);
+  --line: rgba(26, 26, 25, 0.12);
+  /* the current exhibition's colour; each show sets its own */
+  --show: #b8613a;
+  background: var(--white);
+  color: var(--ink);
+  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.45;
+  font-weight: 400;
+  letter-spacing: -0.003em;
+}
+.pl * {
+  font-size: inherit;
+}
+.pl-mute {
+  color: var(--mute);
+}
+
+/* the block the name rests on; its proportions are the current object's footprint */
+.pl-block {
+  background: var(--ink);
+  transition:
+    width 2s cubic-bezier(0.45, 0, 0.2, 1),
+    height 2s cubic-bezier(0.45, 0, 0.2, 1),
+    background-color 2s cubic-bezier(0.45, 0, 0.2, 1);
+}
+
+/* everything arrives slowly, one thing at a time */
+.pl-slow {
+  opacity: 0;
+  transition: opacity 2s cubic-bezier(0.45, 0, 0.2, 1);
+  transition-delay: var(--d, 0s);
+}
+.pl-slow.is-in {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pl-slow {
+    opacity: 1 !important;
+    transition: none !important;
+  }
+  .pl-block {
+    transition: none !important;
+  }
+}
