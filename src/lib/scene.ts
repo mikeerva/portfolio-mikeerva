@@ -5,6 +5,8 @@ export const object = {
   // Continuous state index: integers are the four facets, fractions are in-between.
   // Unbounded so the object can keep turning; the category is progress mod 4.
   progress: 0,
+  // Set with a new progress that the mass should take up at once instead of turning to it
+  jump: false,
   // Tilt (radians) from vertical dragging
   tilt: 0,
   hover: false,
@@ -16,9 +18,8 @@ export const object = {
   // The project being entered (index), or -1; and the fragment under the pointer, or -1
   focus: -1,
   hoverProject: -1,
-  // When the Hero began forming on first load (performance.now() ms), or null before it has;
-  // 0 shows it formed straight away
-  introAt: null as number | null,
+  // Hero: centre (CSS px) of the link under the pointer, which draws the material toward it
+  heroLink: null as { x: number; y: number } | null,
   // How far through the open project's case study the reader has scrolled (0..1)
   projectScroll: 0,
   // Called by the canvas every frame with the eased values it rendered the mass with,

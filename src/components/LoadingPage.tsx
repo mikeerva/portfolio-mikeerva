@@ -70,10 +70,10 @@ export function LoadingPage({ onStart, onComplete }: Props) {
             key="count"
             exit={{ opacity: 0 }}
             transition={{ duration: 0.6 }}
-            className="font-display font-bold tabular-nums text-white/60 flex items-baseline gap-1"
+            className="font-display font-bold tabular-nums text-glow flex items-baseline gap-1"
           >
-            <span className="text-6xl">{progress}</span>
-            <span className="text-3xl">%</span>
+            <span className="text-phi-xl leading-none">{progress}</span>
+            <span className="text-phi-md">%</span>
           </motion.div>
         ) : (
           <motion.button
@@ -81,9 +81,18 @@ export function LoadingPage({ onStart, onComplete }: Props) {
             type="button"
             onClick={start}
             initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 1 }}
-            className="cursor-pointer text-sm font-light uppercase tracking-[0.35em] text-white/60 transition-colors duration-500 hover:text-white"
+            // Light type on dark stays legible at low opacity, so on leaving it fades a little
+            // ahead of the screen and is gone when the screen visibly is
+            animate={{ opacity: leaving ? 0 : 1 }}
+            transition={leaving ? { duration: FADE_OUT * 0.7, ease: 'easeInOut' } : { duration: 1 }}
+            className={`cursor-pointer font-light uppercase transition-[color,letter-spacing,font-size] duration-500 ease-out ${
+              // It grows by its font size, not a scale, so the type stays crisp through the change
+              // instead of snapping sharp at the end. Once pressed it stays as hovered while the
+              // screen fades, rather than easing back.
+              leaving
+                ? 'text-[1.04rem] tracking-[0.45em] text-white'
+                : 'text-phi-sm tracking-[0.35em] text-glow hover:text-[1.04rem] hover:tracking-[0.45em] hover:text-white'
+            }`}
           >
             Start Experience
           </motion.button>

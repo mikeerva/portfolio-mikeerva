@@ -10,6 +10,7 @@ import {
   type Placement,
   OPEN_LEFT,
   OPEN_RIGHT,
+  PANEL_LEAVE_S,
   PANEL_RADIUS,
   PANEL_Z,
   panelRect,
@@ -37,8 +38,6 @@ const BLOBS: [number, number, number][] = [
 const COUNT = BLOB_COUNT
 // Work object scale while in the Hero, so entering Work reads as the camera pulling back
 const HERO_ZOOM = 1.8
-// How long the Hero's material takes to settle when the site first appears (ms)
-const INTRO_MS = 1700
 // Dividing into project fragments: how long the selected mass rests before dividing, how long
 // dividing, merging back and opening a fragment onto its project take (s), and how tightly each
 // fragment gathers its part of the mass and how large its blobs become
@@ -330,10 +329,38 @@ export function FluidCanvas({ mode }: { mode: FluidMode }) {
     const lift = new Float32Array(MAX_PROJECTS)
     let split = 0
     let enter = 0
+    let sinceWork = modeRef.current === 'work' ? 0 : 10
     let entered = -1
     let settled = 0
     // Each blob's position on screen this frame (device px; x, y, radius), for the fragments' extents
     const screen = new Float32Array(COUNT * 3)
+    // Hero: the pointer (CSS px) builds pressure in the material near it, which swells and leans
+    // toward it, then eases back once it moves on. Touch only presses while touching.
+    const pointer = { x: 0, y: 0, in: false }
+    const heroPress = new Float32Array(COUNT)
+    let pressX = 0
+    let pressY = 0
+    let pressSnap = true
+    // For each Work-only blob, the shared volume it sinks into in the Hero
+    const hostOf = new Int8Array(COUNT).fill(-1)
+    let linkPull = 0
+    const onPointer = (e: PointerEvent) => {
+      pointer.x = e.clientX
+      pointer.y = e.clientY
+      pointer.in = e.pointerType !== 'touch' || e.buttons > 0
+    }
+    const onTouchEnd = (e: PointerEvent) => {
+      if (e.pointerType === 'touch') pointer.in = false
+    }
+    // Leaving the window (no element to move on to)
+    const onPointerOut = (e: PointerEvent) => {
+      if (!e.relatedTarget) pointer.in = false
+    }
+    window.addEventListener('pointermove', onPointer)
+    window.addEventListener('pointerdown', onPointer)
+    window.addEventListener('pointerup', onTouchEnd)
+    window.addEventListener('pointercancel', onTouchEnd)
+    document.addEventListener('pointerout', onPointerOut)
     // The category being divided, and each blob's place in its project's own shape
     // ([x, y, z, radius], fragment units before its size)
     let divided: CategoryId | null = null
@@ -384,10 +411,16 @@ export function FluidCanvas({ mode }: { mode: FluidMode }) {
       const zoomTarget = current === 'home' ? HERO_ZOOM : object.open ? 1 : object.hover ? 1.05 : 1
       zoom += (zoomTarget - zoom) * 0.035
       tilt += (object.tilt - tilt) * 0.08
+      // A new resting orientation set without a turn: taken up at once rather than turned to
+      if (object.jump) {
+        object.jump = false
+        turn = object.progress
+        lag.fill(object.progress)
+      }
       // The system's shared turn; individual blobs lag around it, the typography rides it exactly
       turn += (object.progress - turn) * 0.14
-      const sway = Math.sin(t * 0.23) * 0.06
-      const cy = layout.cy - Math.sin(t * 0.45) * layout.unit * 0.05
+      const sway = Math.sin(t * 0.23) * 0.08
+      const cy = layout.cy - Math.sin(t * 0.45) * layout.unit * 0.07
       const unit = layout.unit * k * zoom
       const ocx = layout.cx * k
       const ocy = h - cy * k
@@ -400,10 +433,10 @@ export function FluidCanvas({ mode }: { mode: FluidMode }) {
         lag[i] += (object.progress - lag[i]) * (0.1 + (i % 5) * 0.025)
         const bend = Math.sin((lag[i] - Math.floor(lag[i])) * Math.PI)
         const [mx, my, mz, mr] = MASS[i]
-        const push = 1 + blobPressure(i, t) * 0.2
+        const push = 1 + blobPressure(i, t) * 0.27
         const [px, py, pz] = place([mx * push, my * push, mz * push], yawOf(lag[i]) + sway, tilt)
-        base[i * 4] = px * (1 + bend * 0.08) + Math.sin(t * 0.21 + ph) * 0.015
-        base[i * 4 + 1] = py * (1 - bend * 0.05) + Math.cos(t * 0.17 + ph * 1.3) * 0.015
+        base[i * 4] = px * (1 + bend * 0.08) + Math.sin(t * 0.21 + ph) * 0.025
+        base[i * 4 + 1] = py * (1 - bend * 0.05) + Math.cos(t * 0.17 + ph * 1.3) * 0.025
         base[i * 4 + 2] = pz
         base[i * 4 + 3] = mr * 1.07 * (1 + (push - 1) * 0.8)
       }
@@ -467,11 +500,25 @@ export function FluidCanvas({ mode }: { mode: FluidMode }) {
         lift[g] += ((object.hoverProject === g && enter === 0 && split >= 1 ? 1 : 0) - lift[g]) * 0.055
       }
       const s = split
-      // How far the Hero has formed on first load
-      const settle =
-        object.introAt === null ? 0 : object.introAt === 0 ? 1 : smoother(Math.min((now - object.introAt) / INTRO_MS, 1))
       // The other fragments recede into the dark and are gone before their blobs regrow as lobes
       const gone = ramp(0, 0.36, enter)
+
+      // The pressure point trails the pointer a little, so it moves through the material softly.
+      // Over a Hero link it settles on the link instead, and the material nearest it draws toward
+      // it harder.
+      const link = current === 'home' ? object.heroLink : null
+      linkPull += ((link ? 1 : 0) - linkPull) * (1 - Math.exp(-dt / 0.9))
+      const pressing = pointer.in || !!link
+      const gx = (link ? link.x : pointer.x) * k
+      const gy = h - (link ? link.y : pointer.y) * k
+      if (pressSnap && pressing) {
+        pressX = gx
+        pressY = gy
+        pressSnap = false
+      }
+      const follow = 1 - Math.exp(-dt / 0.7)
+      pressX += (gx - pressX) * follow
+      pressY += (gy - pressY) * follow
 
       let workShare = 0
       for (let i = 0; i < COUNT; i++) {
@@ -479,15 +526,26 @@ export function FluidCanvas({ mode }: { mode: FluidMode }) {
         // Work-only blobs sit inside the mass with no size in the Hero, and grow out of it
         const [bx, by, br] = BLOBS[i] ?? [0, 0, 0]
 
-        // First load: the Hero's material starts a little quieter and further back, gathered
-        // slightly in, its movement subdued, and settles into its usual state as it forms
-        const calm = 0.35 + 0.65 * settle
-        const fx = bx + Math.sin(t * (0.13 + (i % 5) * 0.03) + ph) * 0.05 * calm
-        const fy = 1 - by - Math.cos(t * (0.11 + (i % 4) * 0.035) + ph * 1.3) * 0.06 * calm
-        const gather = 0.08 * (1 - settle)
-        let hx = (fx + (0.5 - fx) * gather) * w
-        let hy = (fy + (0.5 - fy) * gather) * h
-        const hr = br * (1 + Math.sin(t * 0.4 + ph) * 0.1 * calm) * m * (0.86 + 0.14 * settle)
+        let hx = (bx + Math.sin(t * (0.13 + (i % 5) * 0.03) + ph) * 0.05) * w
+        let hy = (1 - by - Math.cos(t * (0.11 + (i % 4) * 0.035) + ph * 1.3) * 0.06) * h
+        let hr = br * (1 + Math.sin(t * 0.4 + ph) * 0.1) * m
+        if (br > 0 && speed === 1) {
+          // Builds slowly and releases more slowly still; the nearer the pointer to a volume, the
+          // more it swells and leans toward it, so the outline bulges where the pointer is.
+          // Measured from where the volume rests, so its own lean never feeds back into it, and the
+          // lean fades out toward its centre, so it never flips as the pointer crosses it.
+          const dx = pressX - hx
+          const dy = pressY - hy
+          const d = Math.hypot(dx, dy) || 1
+          const near = pressing ? 1 - ramp(hr * 0.2, hr + m * (0.25 - 0.08 * linkPull), d) : 0
+          const tau = near > heroPress[i] ? 1.4 : 2.2
+          heroPress[i] += (near - heroPress[i]) * (1 - Math.exp(-dt / tau))
+          const press = heroPress[i] * heroPress[i] * (3 - 2 * heroPress[i]) * (1 + 0.6 * linkPull)
+          const lean = m * 0.014 * press * ramp(0, hr, d)
+          hx += (dx / d) * lean
+          hy += (dy / d) * lean
+          hr += m * 0.015 * press
+        }
 
         let ox = base[i * 4]
         let oy = base[i * 4 + 1]
@@ -599,24 +657,42 @@ export function FluidCanvas({ mode }: { mode: FluidMode }) {
             wy += (ly - wy) * b
             wr += (lr - wr) * b
             depth += (sd - depth) * b
-          } else if (enter >= 0.4) {
-            // Pushes out from inside its side's main body to its own lobe, as internal pressure
+          } else if (enter > 0.36) {
+            // Pushes out from inside its side's main body to its own lobe, as internal pressure.
+            // It hands over from its fragment's spot while it has no size either side (0.36–0.44),
+            // since its position still leaks into whatever it's blended with (e.g. the Hero)
             const [au, av] = slotOf[i] < OPEN_LEFT.length ? OPEN_LEFT[0] : OPEN_RIGHT[0]
             const ax = portrait ? av * w : au * w
             const ay = h - (portrait ? au * h : av * h)
             const grow = ramp(0.6 + ((i * 29) % 9) * 0.012, 0.98, enter)
-            wx = ax + (lx - ax) * grow
-            wy = ay + (ly - ay) * grow
-            wr = lr * grow
-            depth = sd
+            const hand = ramp(0.36, 0.44, enter)
+            wx += (ax + (lx - ax) * grow - wx) * hand
+            wy += (ay + (ly - ay) * grow - wy) * hand
+            wr += (lr * grow - wr) * hand
+            depth += (sd - depth) * hand
           }
         }
         screen[i * 3] = wx
         screen[i * 3 + 1] = wy
         screen[i * 3 + 2] = wr
         if (i >= BLOBS.length) {
-          hx = wx
-          hy = wy
+          // Work-only: it belongs to the shared volume it sits in within the Work mass (chosen
+          // while fully in Work, kept through any transition), and in the Hero it sits at that
+          // volume's centre as drawn this frame. So leaving Work it travels inside its volume and
+          // shrinks into it (and grows out of it the other way), never lingering or flying off
+          // as a droplet.
+          if (hostOf[i] < 0 || weights[1][i] > 0.999) {
+            let best = Infinity
+            for (let j = 0; j < BLOBS.length; j++) {
+              const s = Math.hypot(wx - data[j * 4], wy - data[j * 4 + 1]) - data[j * 4 + 2]
+              if (s < best) {
+                best = s
+                hostOf[i] = j
+              }
+            }
+          }
+          hx = data[hostOf[i] * 4]
+          hy = data[hostOf[i] * 4 + 1]
         }
 
         const rate = 0.018 + (i % 5) * 0.005
@@ -633,9 +709,20 @@ export function FluidCanvas({ mode }: { mode: FluidMode }) {
         data[i * 4 + 1] = hy * eh + wy * ew
         data[i * 4 + 2] = hr * eh + wr * ew
         data[i * 4 + 3] = depth * ew
+        if (i >= BLOBS.length) {
+          // Work-only blobs reach their volume's centre (and depth) early, while still large and
+          // merged with it, and only then shrink away there, where they leave no mark (small
+          // anywhere else, they show as a bead or a pinpoint dimple)
+          const stay = ew * ew * ew
+          const hostDepth = data[hostOf[i] * 4 + 3]
+          data[i * 4] = hx + (wx - hx) * stay
+          data[i * 4 + 1] = hy + (wy - hy) * stay
+          data[i * 4 + 3] = hostDepth + (depth * ew - hostDepth) * stay
+        }
       }
 
-      if (current === 'work') {
+      // Also while leaving Work: its layers ride the frame until they've faded out and unmounted
+      if (current === 'work' || object.onFrame || object.onProjectsFrame) {
         // Each fragment on screen (CSS px): radius-weighted centre and a rough extent
         const f = out.fragments
         f.fill(0)
@@ -674,10 +761,14 @@ export function FluidCanvas({ mode }: { mode: FluidMode }) {
       gl.uniform1f(uUnit, unit)
       gl.uniform1f(uSharp, 1 + workShare * 0.6)
       gl.uniform1f(uWork, workShare)
+      // Leaving Work or the category: the panel and its cut-out close back into their centre line
+      // together (Projects closes the panel on the same curve), so no gap or dimmed material shows
+      sinceWork = current === 'work' && object.open ? 0 : sinceWork + dt
+      const open = Math.min(reveal, 1 - ramp(0, PANEL_LEAVE_S, sinceWork))
       // The panel as revealed so far: it opens from its centre line outward along the long axis
       const pr = panelRect(canvas.clientWidth, canvas.clientHeight)
-      const clipX = pr.portrait ? 0 : (pr.width * (1 - reveal)) / 2
-      const clipY = pr.portrait ? (pr.height * (1 - reveal)) / 2 : 0
+      const clipX = pr.portrait ? 0 : (pr.width * (1 - open)) / 2
+      const clipY = pr.portrait ? (pr.height * (1 - open)) / 2 : 0
       gl.uniform4f(
         uPanel,
         (pr.left + clipX) * k,
@@ -687,8 +778,9 @@ export function FluidCanvas({ mode }: { mode: FluidMode }) {
       )
       gl.uniform1f(uPanelR, PANEL_RADIUS * k)
       gl.uniform1f(uTime, t)
-      gl.uniform1f(uFrag, current === 'work' ? ramp(0.5, 1, split) * (1 - ramp(0.05, 0.4, enter)) : 0)
-      gl.uniform1f(uPanelA, current === 'work' ? reveal : 0)
+      gl.uniform1f(uFrag, ramp(0.5, 1, split) * (1 - ramp(0.05, 0.4, enter)) * workShare)
+      // The last sliver of a closing cut-out fades rather than lingering as a hairline
+      gl.uniform1f(uPanelA, reveal * (sinceWork > 0 ? ramp(0, 0.08, open) : 1))
       gl.uniform4fv(uBlobs, data)
       gl.drawArrays(gl.TRIANGLES, 0, 3)
       raf = requestAnimationFrame(frame)
@@ -698,6 +790,11 @@ export function FluidCanvas({ mode }: { mode: FluidMode }) {
     return () => {
       cancelAnimationFrame(raf)
       ro.disconnect()
+      window.removeEventListener('pointermove', onPointer)
+      window.removeEventListener('pointerdown', onPointer)
+      window.removeEventListener('pointerup', onTouchEnd)
+      window.removeEventListener('pointercancel', onTouchEnd)
+      document.removeEventListener('pointerout', onPointerOut)
       gl.deleteBuffer(buffer)
       gl.deleteProgram(program)
     }

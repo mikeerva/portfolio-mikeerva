@@ -18,10 +18,12 @@ export function SoundToggle() {
       onClick={toggle}
       aria-pressed={playing}
       aria-label={playing ? 'Mute music' : 'Play music'}
-      className="group relative flex items-center text-cream/70 transition-colors duration-300 hover:text-cream"
+      className="group relative flex items-center text-glow transition-colors duration-300 hover:text-white"
     >
-      <span className="relative grid size-10 place-items-center rounded-full border border-cream/20 transition-colors duration-300 group-hover:border-cream/60">
-        {!touched && !playing && <span className="absolute inset-0 animate-ping rounded-full border border-cream/30" />}
+      <span className="relative grid size-10 place-items-center">
+        {/* The ring on its own, so it alone grows on hover */}
+        <span className="absolute inset-0 rounded-full border border-glow/40 transition-[border-color,scale] duration-500 ease-out group-hover:scale-[1.15] group-hover:border-white/70" />
+        {!touched && !playing && <span className="absolute inset-0 animate-ping rounded-full border border-glow/30" />}
         <span className="flex h-3.5 items-end gap-[3px]">
           {[0, 1, 2, 3].map((i) => (
             <span

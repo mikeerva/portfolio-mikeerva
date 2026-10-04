@@ -8,6 +8,16 @@
   --color-line: #1f2224;
   --color-surface: #121314;
   --color-cream: #f6f1e4;
+  /* Hover: cream lit lavender, as if by the mass's highlights */
+  --color-glow: #e8e6ff;
+
+  /* Type scale in the golden ratio: each step 1.618 × the one below, from a 16px base */
+  --text-phi-xs: 0.618rem;
+  --text-phi-sm: 1rem;
+  --text-phi-md: 1.618rem;
+  --text-phi-lg: 2.618rem;
+  --text-phi-xl: 4.236rem;
+  --text-phi-2xl: 6.854rem;
 
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Inter Tight", "Inter", ui-sans-serif, system-ui, sans-serif;
@@ -30,6 +40,12 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
+  /* Tailwind v4 leaves buttons with the default arrow; every button here shows the hand */
+  button:not(:disabled),
+  [role='button'] {
+    cursor: pointer;
+  }
+
   ::selection {
     background: #1a3a4a;
   }
@@ -50,6 +66,33 @@
 
 @utility rise {
   animation: rise 1.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Type floating off the mass: the shadow it casts on the mass, away from the light (upper left).
+   --lift (0..1) is how far it has risen: the higher, the further off and softer the shadow. The Work
+   names set it every frame; elsewhere it stays at a fixed height. In em, so it suits any size. */
+@utility lift-shadow {
+  text-shadow: calc(0.02em + var(--lift, 0.6) * 0.06em) calc(0.03em + var(--lift, 0.6) * 0.09em)
+    calc(0.05em + var(--lift, 0.6) * 0.18em) rgb(10 6 34 / calc(0.6 - var(--lift, 0.6) * 0.2));
+}
+
+/* The same shadow for marks and icons, scaled to their size (--s) instead of a font size */
+@utility lift-drop {
+  filter: drop-shadow(
+    calc(var(--s, 40px) * (0.02 + var(--lift, 0.6) * 0.06)) calc(var(--s, 40px) * (0.03 + var(--lift, 0.6) * 0.09))
+      calc(var(--s, 40px) * (0.05 + var(--lift, 0.6) * 0.18)) rgb(10 6 34 / calc(0.6 - var(--lift, 0.6) * 0.2))
+  );
+}
+
+/* The menu button's drops drifting, each at its own pace */
+@keyframes drop-drift {
+  0%, 100% { translate: 0 0; }
+  33% { translate: 0.7px -0.9px; }
+  66% { translate: -0.6px 0.5px; }
+}
+
+.menu-drop {
+  animation: drop-drift 6s ease-in-out infinite;
 }
 
 @keyframes eq {

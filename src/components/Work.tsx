@@ -1,7 +1,8 @@
 import { animate, AnimatePresence, motion, useMotionValue } from 'framer-motion'
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type RefObject } from 'react'
 import { config, type CategoryId } from '../config'
 import { FACETS, facetPath, objectLayout, perspective, place, STATE_COUNT, yawOf } from '../lib/objectStates'
+import { ONBOARD_FACET, onboardStart, onboarding as onboardingState } from '../lib/onboarding'
 import { object } from '../lib/scene'
 import { Projects } from './Projects'
 
@@ -21,8 +22,29 @@ const SNAP = { type: 'spring', stiffness: 60, damping: 16, restDelta: 0.001 } as
 // How far (object units) the resting name floats forward off the mass, toward the viewer
 const FRONT_LIFT = 0.3
 
-// How far below the mass's centre the drag hint sits, in mass units (its outline reaches ~1.5)
-const HINT_GAP = 1.75
+// Pointer travel (px) that counts as the first intentional drag and ends the onboarding
+const ONBOARD_DRAG = 24
+// The onboarding orbit: a circle round the mass's vertical axis (object units), at the height just
+// under "drag to explore", seen slightly from above, and fixed to the mass like the text, so it turns
+// with it. The circle is wider and deeper than the mass, so it passes round it, never through it.
+// The stretch drawn is centred under the text and spans ORBIT_LENGTH of its width, fading in from its
+// tail, with the arrowhead at its right end.
+// It lies level with the eye (no height, no tilt), so however it turns it stays horizontal on screen,
+// like the phrase
+const ORBIT_R = 2
+const ORBIT_Y = 0
+const ORBIT_TILT = 0
+const ORBIT_LENGTH = 0.9
+// ...and how far its tail reaches back, past the start of the phrase
+const ORBIT_TAIL = 1.8
+// "Drag to explore" is fixed to the same frame as the orbit (object units: its height and how far
+// in front of the axis), so the two turn as one piece. It stands out on the orbit itself, clear of
+// the mass, just above the line.
+const ONBOARD_Y = 0.12
+const ONBOARD_Z = ORBIT_R
+// How much further than the orbit the phrase turns
+const ONBOARD_TURN = 1.6
+const ORBIT_SAMPLES = 72
 const indexOf = (id: CategoryId) => config.categories.findIndex((c) => c.id === id)
 // The categories run the other way round the turn: dragging right turns the mass's front to
 // the right, which lowers the progress, and that must bring the next category (01 → 02 → 03 →
@@ -52,27 +74,41 @@ interface Props {
 }
 
 export function Work({ selected, project, onSelect, onClose, onProject }: Props) {
-  const progress = useMotionValue(selected ? nearestState(object.progress, facetOf(indexOf(selected))) : Math.round(object.progress))
+  // First entry this visit: "drag to explore" is the name on the facet turned one state before 01's,
+  // where the mass first rests, with a still orbit round the mass. The first drag turns it away like
+  // any name and the mass comes to rest on 01, whichever way it was dragged; from then on, as always.
+  const [onboarding, setOnboarding] = useState(() => !onboardingState.done && !selected)
+  const progress = useMotionValue(
+    selected
+      ? nearestState(object.progress, facetOf(indexOf(selected)))
+      : onboarding
+        ? onboardStart(object.progress)
+        : Math.round(object.progress),
+  )
   const [nearest, setNearest] = useState(() => Math.round(progress.get()))
   const [offState, setOffState] = useState(false)
   const [dragging, setDragging] = useState(false)
   const [arrived, setArrived] = useState(false)
-  const [explored, setExplored] = useState(false)
   const [overTarget, setOverTarget] = useState(false)
   const moved = useRef(false)
   const sectionRef = useRef<HTMLElement>(null)
-  // The drag hint's place: under the mass's resting position (not its live float or zoom), so
-  // it never moves; recomputed only when the window changes size
-  const hintAt = () => {
-    const { cy, unit } = objectLayout(window.innerWidth, window.innerHeight)
-    return Math.round(cy + unit * HINT_GAP)
+  const [startedOnboarding] = useState(onboarding)
+  // The names (and, until then, the onboarding) wait for the first drag to come to rest on 01
+  const [namesReady, setNamesReady] = useState(!onboarding)
+  // "Drag to explore" and its orbit, like each name, exist twice: under the canvas and above it
+  const onboardFront = useRef<HTMLDivElement>(null)
+  const onboardBack = useRef<HTMLDivElement>(null)
+  const orbitFront = useRef<SVGSVGElement>(null)
+  const orbitBack = useRef<SVGSVGElement>(null)
+  // The first drag has begun: from then on the onboarding only ever turns further out of view
+  const handedOver = useRef(false)
+  const onboardDrag = useRef(false)
+  const endOnboarding = () => {
+    if (onboardingState.done) return
+    onboardingState.finish()
+    handedOver.current = true
+    setOnboarding(false)
   }
-  const [hintTop, setHintTop] = useState(hintAt)
-  useEffect(() => {
-    const onResize = () => setHintTop(hintAt())
-    window.addEventListener('resize', onResize)
-    return () => window.removeEventListener('resize', onResize)
-  }, [])
   // Each name exists twice: under the canvas (hidden by the mass) and above it
   const backRefs = useRef<(HTMLDivElement | null)[]>([])
   const frontRefs = useRef<(HTMLDivElement | null)[]>([])
@@ -81,7 +117,10 @@ export function Work({ selected, project, onSelect, onClose, onProject }: Props)
   const category = config.categories[categoryAt(active)]
   const [firstActive] = useState(active)
   const settled = arrived && !dragging && !offState
-  const hovering = settled && overTarget && !selected
+  // The mass swells under the pointer as always, but while onboarding there's nothing to enter yet
+  const overMass = settled && overTarget && !selected
+  const hovering = overMass && namesReady
+  if (!namesReady && (selected || (!onboarding && settled))) setNamesReady(true)
 
   const snapTo = (n: number) => {
     animate(progress, n, SNAP)
@@ -93,6 +132,8 @@ export function Work({ selected, project, onSelect, onClose, onProject }: Props)
   }, [])
 
   useEffect(() => {
+    // The onboarding's resting orientation is taken up at once, not turned to on arrival
+    if (object.progress !== progress.get() && startedOnboarding) object.jump = true
     object.progress = progress.get()
     const unsubscribe = progress.on('change', (v) => {
       object.progress = v
@@ -104,11 +145,92 @@ export function Work({ selected, project, onSelect, onClose, onProject }: Props)
       object.tilt = 0
       object.hover = false
     }
-  }, [progress])
+  }, [progress, startedOnboarding])
 
   // The names ride the canvas's own frame: same eased turn, sway, tilt and zoom as the mass
   useEffect(() => {
     let lastUnit = 0
+    // Once the first drag has turned "drag to explore" away, it can't turn back into view
+    let onboardSeen = 1
+    // Half the width of "drag to explore", as an angle round the orbit
+    let textHalf = 0
+    // The orbit, fixed to the mass at "drag to explore"'s facet: turned exactly as far as that
+    // facet (phi), tilted with the mass, and as visible as the text. The part in front of the mass is
+    // drawn above the canvas and the part behind it below, where the mass hides it.
+    const drawOrbit = (phi: number, tilt: number, cx: number, cy: number, u: number, alpha: number) => {
+      const front = orbitFront.current
+      const back = orbitBack.current
+      if (!front || !back) return
+      // Centred under the text: its leading end round the vertical axis (0: toward the viewer,
+      // rising to the right) and how far back its tail reaches
+      const head = phi + textHalf * ORBIT_LENGTH
+      const span = textHalf * (ORBIT_LENGTH + ORBIT_TAIL)
+
+      const pts: [number, number, number][] = []
+      for (let s = 0; s <= ORBIT_SAMPLES; s++) {
+        const a = head - span + (span * s) / ORBIT_SAMPLES
+        const [x, y, z] = place([ORBIT_R * Math.sin(a), ORBIT_Y, ORBIT_R * Math.cos(a)], 0, ORBIT_TILT + tilt)
+        const p = perspective(z)
+        // Positive in front of the mass's vertical axis
+        pts.push([cx + x * p * u, cy - y * p * u, Math.cos(a)])
+      }
+      const pt = (q: number[]) => `${q[0].toFixed(1)},${q[1].toFixed(1)}`
+      // One line per layer, split where it passes the side of the mass and joined exactly there
+      let f = ''
+      let b = ''
+      for (let s = 0; s <= ORBIT_SAMPLES; s++) {
+        const q = pts[s]
+        const inFront = q[2] >= 0
+        if (s === 0) {
+          if (inFront) f += `M${pt(q)}`
+          else b += `M${pt(q)}`
+          continue
+        }
+        const prev = pts[s - 1]
+        if (prev[2] >= 0 === inFront) {
+          if (inFront) f += `L${pt(q)}`
+          else b += `L${pt(q)}`
+        } else {
+          const t = prev[2] / (prev[2] - q[2])
+          const c = [prev[0] + (q[0] - prev[0]) * t, prev[1] + (q[1] - prev[1]) * t]
+          if (inFront) {
+            b += `L${pt(c)}`
+            f += `M${pt(c)}L${pt(q)}`
+          } else {
+            f += `L${pt(c)}`
+            b += `M${pt(c)}L${pt(q)}`
+          }
+        }
+      }
+      const [lineF, headF, fadeF] = [front.children[1], front.children[2], front.children[0].firstElementChild!]
+      const [lineB, headB, fadeB] = [back.children[1], back.children[2], back.children[0].firstElementChild!]
+      lineF.setAttribute('d', span > 0.02 ? f : '')
+      lineB.setAttribute('d', span > 0.02 ? b : '')
+      // It fades in continuously from its tail toward the arrowhead
+      for (const fade of [fadeF, fadeB]) {
+        fade.setAttribute('x1', pts[0][0].toFixed(1))
+        fade.setAttribute('y1', pts[0][1].toFixed(1))
+        fade.setAttribute('x2', pts[ORBIT_SAMPLES][0].toFixed(1))
+        fade.setAttribute('y2', pts[ORBIT_SAMPLES][1].toFixed(1))
+      }
+      // The arrowhead at the leading end, along its direction on screen
+      const tip = pts[ORBIT_SAMPLES]
+      const before = pts[ORBIT_SAMPLES - 3]
+      const dl = Math.hypot(tip[0] - before[0], tip[1] - before[1]) || 1
+      const [dx, dy] = [(tip[0] - before[0]) / dl, (tip[1] - before[1]) / dl]
+      const size = Math.max(7, u * 0.065)
+      const wing = (side: number) => {
+        const c = Math.cos(2.6 * side)
+        const s = Math.sin(2.6 * side)
+        return [tip[0] + (dx * c - dy * s) * size, tip[1] + (dx * s + dy * c) * size]
+      }
+      const head2 = span > 0.02 ? `M${pt(wing(1))}L${pt(tip)}L${pt(wing(-1))}Z` : ''
+      headF.setAttribute('d', tip[2] >= 0 ? head2 : '')
+      headB.setAttribute('d', tip[2] < 0 ? head2 : '')
+      front.style.opacity = String(alpha)
+      back.style.opacity = String(alpha)
+    }
+
     object.onFrame = ({ turn, sway, tilt, zoom, cx, cy, unit, split }) => {
       const portrait = window.innerHeight > window.innerWidth
       if (unit !== lastUnit) {
@@ -117,9 +239,19 @@ export function Work({ selected, project, onSelect, onClose, onProject }: Props)
         lastUnit = unit
       }
       const u = unit * zoom
+      // Read before anything is written this frame, so it costs no extra layout
+      const textEl = onboardFront.current
+      // Every frame, so the line follows the phrase as its letters open on hover
+      if (textEl) {
+        const half = textEl.offsetWidth / 2 / unit
+        textHalf = Math.asin(Math.min(half / (ORBIT_R * perspective(ONBOARD_Z)), 1))
+      }
       FACETS.forEach(({ at, atPortrait }, i) => {
         const front = frontRefs.current[i]
         const back = backRefs.current[i]
+        // The onboarding rides its facet exactly as that facet's name would
+        const onboardF = i === ONBOARD_FACET ? onboardFront.current : null
+        const onboardB = i === ONBOARD_FACET ? onboardBack.current : null
         if (!front || !back) return
         // Angle of this facet from the viewer, wrapped so names behind never render mirrored
         const phi = yawOf(mod(turn - i + 2, STATE_COUNT) - 2) + sway
@@ -157,6 +289,41 @@ export function Work({ selected, project, onSelect, onClose, onProject }: Props)
         back.style.transform = transform
         front.style.opacity = String(alpha * inFront)
         back.style.opacity = String(alpha * (1 - inFront))
+        // How far it has risen off the mass, for the shadow it casts there
+        const risen = (lift / FRONT_LIFT).toFixed(3)
+        front.style.setProperty('--lift', risen)
+        back.style.setProperty('--lift', risen)
+        if (onboardF && onboardB) {
+          // "Drag to explore" turns rigidly with the orbit about the mass's axis: same angle, tilt
+          // and projection, so the two keep their places relative to each other throughout. It is
+          // shown, layered and lit like a name.
+          const [ox, oy, oz] = place([ONBOARD_Z * Math.sin(phi), ONBOARD_Y, ONBOARD_Z * Math.cos(phi)], 0, ORBIT_TILT + tilt)
+          const op = perspective(oz)
+          // The card turns further than the orbit it sits on and is drawn in deeper perspective, so
+          // the phrase visibly swings round with the line rather than sliding along it
+          const oLean = clamp(phi * ONBOARD_TURN, -Math.PI / 2, Math.PI / 2)
+          const oAlpha =
+            smoothstep(0.02, 0.1, Math.abs(Math.cos(oLean))) *
+            (1 - 0.5 * smoothstep(0, -1, oz)) *
+            (1 - smoothstep(0.75, 0.95, Math.abs(phi) / Math.PI)) *
+            (1 - smoothstep(0.5, 1, away)) *
+            (1 - smoothstep(0.02, 0.35, split))
+          if (handedOver.current) onboardSeen = Math.min(onboardSeen, oAlpha)
+          const a = handedOver.current ? onboardSeen : oAlpha
+          const oFront = smoothstep(-0.1, 0.1, oz)
+          const oTransform =
+            `translate3d(${cx + ox * op * u}px, ${cy - oy * op * u}px, 0) translate(-50%, -50%) ` +
+            `perspective(600px) rotateY(${oLean}rad) scale(${(op / perspective(ONBOARD_Z)) * zoom})`
+          onboardF.style.transform = oTransform
+          onboardB.style.transform = oTransform
+          onboardF.style.opacity = String(a * oFront)
+          onboardB.style.opacity = String(a * (1 - oFront))
+          // Standing out on the orbit, it's fully risen while it faces the viewer
+          const oRisen = Math.max(Math.cos(oLean), 0).toFixed(3)
+          onboardF.style.setProperty('--lift', oRisen)
+          onboardB.style.setProperty('--lift', oRisen)
+          drawOrbit(phi, tilt, cx, cy, u, a)
+        }
       })
     }
     return () => {
@@ -186,8 +353,8 @@ export function Work({ selected, project, onSelect, onClose, onProject }: Props)
   }, [project])
 
   useEffect(() => {
-    object.hover = hovering
-  }, [hovering])
+    object.hover = overMass
+  }, [overMass])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -201,10 +368,13 @@ export function Work({ selected, project, onSelect, onClose, onProject }: Props)
       }
       // Right/down: the next category; left/up: the previous one (the same way as dragging)
       const step = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? -1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? 1 : 0
-      if (step) {
-        setExplored(true)
+      if (step && onboarding) {
+        // The first turn completes the onboarding and comes to rest on 01
+        endOnboarding()
+        snapTo(nearestState(progress.get(), facetOf(0)))
+      } else if (step) {
         snapTo(Math.round(progress.get()) + step)
-      } else if (e.key === 'Enter' && settled && e.target === document.body) {
+      } else if (e.key === 'Enter' && settled && namesReady && e.target === document.body) {
         onSelect(category.id)
       }
     }
@@ -216,7 +386,9 @@ export function Work({ selected, project, onSelect, onClose, onProject }: Props)
     if (e.button !== 0 || selected) return
     progress.stop()
     moved.current = false
-    const settledAtPress = settled
+    // Until the onboarding has come to rest on 01, a click enters nothing
+    const settledAtPress = settled && namesReady
+    const onboardingAtPress = onboarding
     const startX = e.clientX
     const startY = e.clientY
     const startP = progress.get()
@@ -229,9 +401,12 @@ export function Work({ selected, project, onSelect, onClose, onProject }: Props)
       if (!moved.current && Math.hypot(dx, dy) > 6) {
         moved.current = true
         setDragging(true)
-        setExplored(true)
       }
       if (!moved.current) return
+      if (onboardingAtPress && !onboardDrag.current && Math.hypot(dx, dy) > ONBOARD_DRAG) {
+        onboardDrag.current = true
+        endOnboarding()
+      }
       progress.set(startP - dx / pxPerState)
       object.tilt = clamp(dy / 500, -0.4, 0.4)
     }
@@ -246,6 +421,12 @@ export function Work({ selected, project, onSelect, onClose, onProject }: Props)
         return
       }
       setDragging(false)
+      if (onboardDrag.current) {
+        // The onboarding drag always comes to rest on 01, whichever way it went
+        onboardDrag.current = false
+        snapTo(nearestState(progress.get(), facetOf(0)))
+        return
+      }
       // Throw: a fast release carries on to the following state
       snapTo(Math.round(progress.get() + clamp(progress.getVelocity() * 0.25, -1.5, 1.5)))
     }
@@ -261,9 +442,9 @@ export function Work({ selected, project, onSelect, onClose, onProject }: Props)
     const { lines } = FACETS[shownCategory]
     const refs = layer === 'front' ? frontRefs : backRefs
     const isActive = i === active
-    const enterable = layer === 'front' && isActive && settled && !selected
-    const shown = arrived && (!selected || isActive)
-    const delay = selected || i === firstActive ? 0 : 0.5 + mod(firstActive - i, STATE_COUNT) * 0.15
+    const enterable = layer === 'front' && isActive && settled && namesReady && !selected
+    const shown = arrived && namesReady && (!selected || isActive)
+    const delay = selected || startedOnboarding || i === firstActive ? 0 : 0.5 + mod(firstActive - i, STATE_COUNT) * 0.15
     return (
       <div
         key={i}
@@ -271,14 +452,14 @@ export function Work({ selected, project, onSelect, onClose, onProject }: Props)
           refs.current[i] = el
         }}
         data-enter={enterable || undefined}
-        className={`absolute left-0 top-0 opacity-0 will-change-transform ${enterable ? 'pointer-events-auto' : ''} ${at[0] < 0 ? 'text-right' : 'text-left'}`}
+        className={`lift-shadow absolute left-0 top-0 opacity-0 will-change-transform ${enterable ? 'pointer-events-auto' : ''} ${at[0] < 0 ? 'text-right' : 'text-left'}`}
       >
         <div style={{ opacity: shown ? 1 : 0, transition: `opacity 1.4s cubic-bezier(0.22, 1, 0.36, 1) ${delay}s` }}>
-          <p className="mb-[0.9em] whitespace-nowrap text-[10px] font-light uppercase tabular-nums tracking-[0.35em] text-white/50 sm:text-[11px]">
+          <p className="mb-[0.9em] whitespace-nowrap text-phi-xs font-light uppercase tabular-nums tracking-[0.35em] text-white/50">
             {pad(shownCategory + 1)} / {pad(STATE_COUNT)}
             {layer === 'front' && isActive && (
               <span
-                className="text-cream transition-opacity duration-500"
+                className="text-glow transition-opacity duration-500"
                 style={{ opacity: hovering ? 1 : 0 }}
               >
                 {'  '}— enter →
@@ -286,7 +467,7 @@ export function Work({ selected, project, onSelect, onClose, onProject }: Props)
             )}
           </p>
           <p
-            className="whitespace-nowrap font-display font-bold uppercase leading-[0.9] text-cream transition-[letter-spacing] duration-700"
+            className={`whitespace-nowrap font-display font-bold uppercase leading-[0.9] transition-[letter-spacing,color] duration-700 ${hovering && isActive ? 'text-glow' : 'text-cream'}`}
             style={{ fontSize: 'var(--type, 60px)', letterSpacing: hovering && isActive ? '0.01em' : '-0.01em' }}
           >
             {lines.map((line) => (
@@ -303,6 +484,42 @@ export function Work({ selected, project, onSelect, onClose, onProject }: Props)
   const cursor = selected ? '' : dragging ? 'cursor-grabbing' : hovering ? 'cursor-pointer' : 'cursor-grab'
   const indices = config.categories.map((_, i) => i)
   const layerExit = { opacity: 0, transition: { duration: 0.4 } }
+  const onboardFade = {
+    initial: { opacity: 0 },
+    animate: { opacity: 1, transition: { duration: 1.4, ease } },
+    exit: { opacity: 0, transition: { duration: 0.2 } },
+  }
+  // One half of the orbit: its fade (placed along the line every frame), the line, the arrowhead
+  const orbit = (ref: RefObject<SVGSVGElement | null>, layer: 'front' | 'back') => (
+    <svg
+      ref={ref}
+      className={`absolute inset-0 size-full overflow-visible transition-colors duration-700 ${overMass ? 'text-glow' : 'text-cream'}`}
+      fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <defs>
+        <linearGradient id={`onboard-fade-${layer}`} gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="currentColor" stopOpacity="0.06" />
+          <stop offset="0.45" stopColor="currentColor" stopOpacity="1" />
+          <stop offset="1" stopColor="currentColor" stopOpacity="1" />
+        </linearGradient>
+      </defs>
+      <path stroke={`url(#onboard-fade-${layer})`} />
+      <path fill="currentColor" />
+    </svg>
+  )
+  // "Drag to explore" in the names' own type, on one line, answering the pointer over the mass as
+  // a name does: its letters open and it's lit lavender
+  const onboardName = (ref: RefObject<HTMLDivElement | null>) => (
+    <div ref={ref} className="lift-shadow absolute left-0 top-0 opacity-0 will-change-transform">
+      <p
+        className={`whitespace-nowrap font-display font-bold uppercase leading-[0.9] transition-[letter-spacing,color] duration-700 ${overMass ? 'text-glow' : 'text-cream'}`}
+        // Half a golden step below the names (1 / √1.618)
+        style={{ fontSize: 'calc(var(--type, 60px) * 0.786)', letterSpacing: overMass ? '0.01em' : '-0.01em' }}
+      >
+        Drag to explore
+      </p>
+    </div>
+  )
+  const showOnboarding = startedOnboarding && arrived && !namesReady && !selected
 
   // No opacity or transform on the section itself: either would make it a stacking
   // context and pull both name layers to one side of the canvas.
@@ -322,7 +539,7 @@ export function Work({ selected, project, onSelect, onClose, onProject }: Props)
         {indices.map((i) => name(i, 'front'))}
       </motion.div>
 
-      <AnimatePresence>
+      <AnimatePresence propagate>
         {selected && (
           <motion.div key={selected} exit={layerExit} className="contents">
             <Projects category={selected} project={project} onProject={(index) => onProject(selected, index)} />
@@ -331,9 +548,9 @@ export function Work({ selected, project, onSelect, onClose, onProject }: Props)
       </AnimatePresence>
 
       <p className="sr-only" aria-live="polite">
-        {category.name}, {categoryAt(active) + 1} of {STATE_COUNT}
+        {namesReady ? `${category.name}, ${categoryAt(active) + 1} of ${STATE_COUNT}` : 'Drag to explore'}
       </p>
-      <button type="button" className="sr-only" disabled={!!selected} onClick={() => onSelect(category.id)}>
+      <button type="button" className="sr-only" disabled={!!selected || !namesReady} onClick={() => onSelect(category.id)}>
         Enter {category.name}
       </button>
 
@@ -347,7 +564,7 @@ export function Work({ selected, project, onSelect, onClose, onProject }: Props)
               initial={{ opacity: 0, x: -8 }}
               animate={{ opacity: 1, x: 0, transition: { duration: 0.6, ease, delay: 1.6 } }}
               exit={{ opacity: 0, transition: { duration: 0.3 } }}
-              className="pointer-events-auto absolute left-5 top-24 text-base font-semibold lowercase text-cream transition-opacity duration-300 hover:opacity-70 sm:left-8 sm:top-28 sm:text-lg"
+              className="lift-shadow pointer-events-auto absolute left-5 top-24 text-phi-sm font-semibold lowercase text-cream transition-colors duration-300 hover:text-glow sm:left-8 sm:top-28"
             >
               ← all work
             </motion.button>
@@ -355,23 +572,25 @@ export function Work({ selected, project, onSelect, onClose, onProject }: Props)
         </AnimatePresence>
       </motion.div>
 
-      {/* The drag hint: a still unit set just under the mass's resting place, in the layer behind
-          the canvas, so the mass and fragments cover it wherever they pass over it */}
-      <motion.div aria-hidden exit={layerExit} className="pointer-events-none absolute inset-x-0 z-0 flex justify-center" style={{ top: hintTop }}>
+      {/* First entry: "drag to explore" on its facet, and the still orbit round the mass. Both
+          are drawn every frame with the names: under the canvas where they're behind the mass,
+          which hides them wherever it covers them, and above it where they're in front. */}
+      <motion.div aria-hidden exit={layerExit} className="pointer-events-none absolute inset-0 z-0">
         <AnimatePresence>
-          {arrived && !explored && !selected && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1, transition: { duration: 1.2, delay: 1.2 } }}
-              exit={{ opacity: 0, transition: { duration: 0.8 } }}
-              className="flex flex-col items-center gap-3 text-white/35"
-            >
-              {/* A turn around the mass's vertical axis: a flat arc, travelling to the right */}
-              <svg viewBox="0 0 48 17" className="block h-[17px] w-12" fill="none" stroke="currentColor" strokeWidth="1">
-                <path d="M41 4.2C37.6 2.2 31.3 1 24 1 12.4 1 3 3.9 3 7.5S12.4 14 24 14c5.6 0 10.7-.7 14.4-1.8" strokeLinecap="round" />
-                <path d="M35.2 10.1l3.4 2.1-2.6 2.9" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              <p className="text-[10px] font-light uppercase leading-none tracking-[0.4em]">drag to explore</p>
+          {showOnboarding && (
+            <motion.div key="onboard-back" {...onboardFade} className="absolute inset-0">
+              {orbit(orbitBack, 'back')}
+              {onboardName(onboardBack)}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+      <motion.div aria-hidden exit={layerExit} className="pointer-events-none absolute inset-0 z-[2]">
+        <AnimatePresence>
+          {showOnboarding && (
+            <motion.div key="onboard-front" {...onboardFade} className="absolute inset-0">
+              {orbit(orbitFront, 'front')}
+              {onboardName(onboardFront)}
             </motion.div>
           )}
         </AnimatePresence>

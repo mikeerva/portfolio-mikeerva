@@ -254,6 +254,8 @@ export const OPEN_RIGHT: Slot[] = [
 // The panel's place in the opening, in the same fractions: [u0, u1, v0, v1]
 const PANEL: [number, number, number, number] = [0.2, 0.88, 0.06, 0.94]
 export const PANEL_RADIUS = 6
+// Closing an open panel when its category or Work is left (s); Work's layers exit in 0.4 s
+export const PANEL_LEAVE_S = 0.38
 
 // The panel on screen (CSS px) for a viewport, and how far it's revealed (clipped open from its
 // centre line) for an entering progress

@@ -1,7 +1,7 @@
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, motion, useIsPresent } from 'framer-motion'
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type UIEvent } from 'react'
 import { config, type CategoryId } from '../config'
-import { PANEL_RADIUS, panelRect, panelReveal } from '../lib/projects'
+import { PANEL_LEAVE_S, PANEL_RADIUS, panelRect, panelReveal } from '../lib/projects'
 import { object } from '../lib/scene'
 import { ProjectView } from './ProjectView'
 
@@ -40,13 +40,22 @@ export function Projects({ category, project, onProject }: Props) {
   const [shown, setShown] = useState(project ?? 0)
   if (project !== null && project !== shown) setShown(project)
 
+  // Leaving (category closed or Work left): the labels fade and the panel closes before they're
+  // removed. Their wrapper is display: contents to keep the layering with the canvas, so it can't.
+  const isPresent = useIsPresent()
+  const leftAt = useRef<number | null>(null)
+  useEffect(() => {
+    if (!isPresent && leftAt.current === null) leftAt.current = performance.now()
+  }, [isPresent])
+
   useEffect(() => {
     object.onProjectsFrame = ({ split, enter, fragments: f }) => {
       fragments.current = f
-      explorable.current = split >= 1 && enter === 0
+      const leave = leftAt.current === null ? 1 : 1 - smoothstep(0, PANEL_LEAVE_S * 1000, performance.now() - leftAt.current)
+      explorable.current = split >= 1 && enter === 0 && leave === 1
       const portrait = window.innerHeight > window.innerWidth
       // Labels arrive once the fragments have parted, and leave as soon as one is entered
-      const present = smoothstep(0.72, 1, split) * (1 - smoothstep(0, 0.25, enter))
+      const present = smoothstep(0.72, 1, split) * (1 - smoothstep(0, 0.25, enter)) * leave
       labelRefs.current.forEach((el, g) => {
         if (!el) return
         const [x, y, r] = [f[g * 3], f[g * 3 + 1], f[g * 3 + 2]]
@@ -66,21 +75,22 @@ export function Projects({ category, project, onProject }: Props) {
       })
       // The panel opens from its centre line once the fragment has torn wide enough, and closes
       // back into it; the canvas reveals the same rectangle, so the masses sit over or behind it
+      // Leaving, it closes into the same line, on the canvas's curve for its cut-out
       const reveal = panelReveal(enter)
       const panel = panelRef.current
       if (panel) {
         const r = panelRect(window.innerWidth, window.innerHeight)
-        const clip = ((1 - reveal) * 50).toFixed(2)
+        const clip = ((1 - Math.min(reveal, leave)) * 50).toFixed(2)
         panel.style.left = `${r.left}px`
         panel.style.top = `${r.top}px`
         panel.style.width = `${r.width}px`
         panel.style.height = `${r.height}px`
         panel.style.clipPath = r.portrait ? `inset(${clip}% 0 round ${PANEL_RADIUS}px)` : `inset(0 ${clip}% round ${PANEL_RADIUS}px)`
-        panel.style.opacity = String(smoothstep(0, 0.3, reveal))
-        panel.style.pointerEvents = reveal > 0.95 ? 'auto' : 'none'
+        panel.style.opacity = String(smoothstep(0, 0.3, reveal) * smoothstep(0, 0.1, leave))
+        panel.style.pointerEvents = reveal > 0.95 && leave === 1 ? 'auto' : 'none'
       }
       const world = worldRef.current
-      if (world) world.style.opacity = String(smoothstep(0.4, 1, reveal))
+      if (world) world.style.opacity = String(smoothstep(0.4, 1, reveal) * leave)
     }
     return () => {
       object.onProjectsFrame = null
@@ -165,22 +175,22 @@ export function Projects({ category, project, onProject }: Props) {
               labelRefs.current[g] = el
             }}
             aria-hidden
-            className="pointer-events-none absolute left-0 top-0 opacity-0 will-change-transform"
+            className="lift-shadow pointer-events-none absolute left-0 top-0 opacity-0 will-change-transform"
           >
             <div
               className="transition-opacity duration-500"
               style={{ opacity: hovered === -1 || hovered === g ? 1 : 0.55 }}
             >
-              <p className="mb-[0.7em] whitespace-nowrap text-[10px] font-light uppercase tabular-nums tracking-[0.35em] text-white/50 sm:text-[11px]">
+              <p className="mb-[0.7em] whitespace-nowrap text-phi-xs font-light uppercase tabular-nums tracking-[0.35em] text-white/50">
                 {pad(g + 1)} / {pad(names.length)}
               </p>
               <p
-                className="whitespace-nowrap font-display text-xl font-bold uppercase leading-none text-cream transition-[letter-spacing] duration-500 sm:text-2xl"
+                className={`whitespace-nowrap font-display text-phi-md font-bold uppercase leading-none transition-[letter-spacing,color] duration-500 ${hovered === g ? 'text-glow' : 'text-cream'}`}
                 style={{ letterSpacing: hovered === g ? '0.02em' : '-0.01em' }}
               >
                 {name}
               </p>
-              <p className="mt-[0.6em] whitespace-nowrap text-[11px] font-light text-white/50 sm:text-xs">{projects[g].discipline ?? categoryName}</p>
+              <p className="mt-[0.6em] whitespace-nowrap text-phi-xs font-light text-white/50">{projects[g].discipline ?? categoryName}</p>
             </div>
           </div>
         ))}
@@ -206,7 +216,7 @@ export function Projects({ category, project, onProject }: Props) {
             initial={{ opacity: 0, x: -8 }}
             animate={{ opacity: 1, x: 0, transition: { duration: 0.6, ease, delay: 2.4 } }}
             exit={{ opacity: 0, transition: { duration: 0.2 } }}
-            className="absolute left-5 top-24 z-20 text-base font-semibold lowercase text-cream transition-opacity duration-300 hover:opacity-70 sm:left-8 sm:top-28 sm:text-lg"
+            className="lift-shadow absolute left-5 top-24 z-20 text-phi-sm font-semibold lowercase text-cream transition-colors duration-300 hover:text-glow sm:left-8 sm:top-28"
           >
             ← back
           </motion.button>
