@@ -239,17 +239,19 @@ export const OPEN_LEFT: Slot[] = [
 export const OPEN_RIGHT: Slot[] = [
   [1.0, 0.36, 0.26, 0.3],
   [0.93, 0.71, 0.17, 0.2],
-  // in front: one restrained intrusion at the middle of the panel's right edge
-  [0.893, 0.5, 0.044, 1.15],
+  // in front: one form crossing the panel's top-right corner, falling down and in unevenly,
+  // answering the left's across the diagonal and a little fuller
+  [0.893, 0.13, 0.066, 1.2],
   [1.06, 0.6, 0.2, 0.25],
   [0.97, 0.93, 0.13, 0.3],
-  [0.95, 0.07, 0.12, 0.4],
+  // the mass behind keeps clear of the corner, so the form in front reads as its own volume
+  [1.03, 0.0, 0.12, 0.3],
   [1.04, 0.15, 0.16, 0.2],
-  [0.905, 0.52, 0.08, 0.3],
+  [0.898, 0.22, 0.04, 1.15],
   [1.08, 0.86, 0.18, 0.2],
-  [0.884, 0.57, 0.026, 1.15],
+  [0.888, 0.06, 0.05, 1.2],
   [0.99, 0.5, 0.15, 0.4],
-  [0.9, 0.86, 0.07, 0.3],
+  [0.884, 0.18, 0.024, 1.15],
 ]
 // The panel's place in the opening, in the same fractions: [u0, u1, v0, v1]
 const PANEL: [number, number, number, number] = [0.2, 0.88, 0.06, 0.94]

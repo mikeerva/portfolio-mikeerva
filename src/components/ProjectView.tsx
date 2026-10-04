@@ -1,7 +1,7 @@
 import type { Ref, RefObject, UIEvent } from 'react'
 import type { Project } from '../config'
 import { caseStudies } from '../projects'
-import { ScrollerContext } from '../projects/scroll'
+import { ScrollerContext, useSmoothWheel } from '../projects/scroll'
 
 interface Props {
   project: Project
@@ -16,9 +16,10 @@ interface Props {
 // object placed in the opening the fragment tore. Both sit under the canvas, which draws the
 // masses over or around them by depth. Projects positions and reveals them every frame.
 // The panel is a size container: a case study sizes itself by the panel (cqw / cqh), not the
-// window, and can stick and track scroll inside it.
+// window, and can stick and track scroll inside it. Wheel scrolling inside it is eased.
 export function ProjectView({ project, panelRef, worldRef, onScroll }: Props) {
   const CaseStudy = caseStudies[project.id]
+  useSmoothWheel(panelRef)
   return (
     <>
       {/* Empty for now: project-specific type set in the space around the panel comes later */}

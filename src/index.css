@@ -95,6 +95,35 @@
   animation: drop-drift 6s ease-in-out infinite;
 }
 
+/* The drop beside a hovered menu link: never quite still, it drifts very slightly on an uneven
+   path, like a drop held in the air */
+@keyframes drop-float {
+  0%, 100% { translate: 0 0; scale: 1 1; }
+  25% { translate: 0.012em -0.04em; scale: 0.985 1.015; }
+  50% { translate: -0.01em -0.012em; scale: 1.012 0.99; }
+  75% { translate: 0.01em 0.025em; scale: 0.995 1.006; }
+}
+
+.menu-float {
+  animation: drop-float 4.6s ease-in-out infinite;
+}
+
+/* ...and when it first appears, it fades in with only the slightest change of size */
+@keyframes drop-in {
+  from { opacity: 0; scale: 0.9; }
+}
+
+.menu-drop-in {
+  animation: drop-in 0.5s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu-float,
+  .menu-drop-in {
+    animation: none;
+  }
+}
+
 @keyframes eq {
   0%, 100% { transform: scaleY(0.3); }
   50% { transform: scaleY(1); }

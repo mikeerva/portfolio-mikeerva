@@ -1,4 +1,5 @@
-import { useContext, useEffect, useRef, type CSSProperties, type ReactNode } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { useContext, useEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react'
 import { ScrollerContext, useInView, useScrollProgress } from '../scroll'
 import { PHOTOS, photoSrc, type PhotoKey } from './assets'
 import './fold.css'
@@ -6,9 +7,8 @@ import { PATH, VIEWBOX } from './wordmark'
 
 // FOLD — Brand Identity / Hospitality, 2026.
 // The case study scrolls inside the project panel and is sized by it (cqw / cqh). Chapters:
-// 00 Opening · 01 The idea · 02 The wordmark · 03 The fold system · 04 Food / photography ·
-// 05 Packaging · 06 Physical space · 07 Menu / print · 08 Campaign · 09 Digital ·
-// 10 Motion principles · 11 Closing
+// 00 Opening · 01 The idea · 02 The wordmark · 03 Packaging · 04 Physical space ·
+// 05 Menu / print · 06 Social media · 07 Order ahead · 08 Motion principles · 09 Closing
 
 const LINE = 'Brunch / Bakery / Specialty coffee / All day'
 
@@ -18,13 +18,11 @@ export function FoldCaseStudy() {
       <Opening />
       <Idea />
       <Wordmark />
-      <FoldSystem />
-      <Photography />
       <Packaging />
       <Space />
       <Print />
-      <Campaign />
-      <Digital />
+      <Social />
+      <Order />
       <Motion />
       <Closing />
     </article>
@@ -44,9 +42,22 @@ function Mark({ className = '', viewBox = VIEWBOX, style }: { className?: string
 function Photo({ k, className = '', style }: { k: PhotoKey; className?: string; style?: CSSProperties }) {
   return (
     <div className={`overflow-hidden ${className}`} style={style}>
-      <img src={photoSrc(k)} alt={PHOTOS[k].alt} loading="lazy" decoding="async" />
+      <img
+        ref={showWhenLoaded}
+        src={photoSrc(k)}
+        alt={PHOTOS[k].alt}
+        decoding="async"
+        className="fold-photo"
+        onLoad={(e) => e.currentTarget.classList.add('is-loaded')}
+        onError={(e) => e.currentTarget.classList.add('is-loaded')}
+      />
     </div>
   )
+}
+
+// ...and one already loaded (from cache) before React attached onLoad shows at once
+function showWhenLoaded(img: HTMLImageElement | null) {
+  if (img?.complete && img.naturalWidth) img.classList.add('is-loaded')
 }
 
 // A chapter's small running head
@@ -146,18 +157,44 @@ function Opening() {
           it has no visible edge. Wide panels: the whole hero, cropped to keep the cup on the
           right and the left side empty for the wordmark. Narrow panels: the lower part, so the
           cup stays whole and the wordmark sits in the black above it. It drifts and swells very
-          slightly as the reader scrolls on. */}
+          slightly as the reader scrolls on. It's two layers: the ground, and the cup over it,
+          which rises and turns a little faster than the ground, for depth. */}
       <div
         data-scroll
-        className="absolute inset-x-0 bottom-0 h-[56%] [mask-image:linear-gradient(to_bottom,transparent,black_22%)] @2xl:inset-0 @2xl:h-full @2xl:[mask-image:none]"
+        className="absolute inset-x-0 bottom-0 h-[56%] [container-type:size] [mask-image:linear-gradient(to_bottom,transparent,black_22%)] @2xl:inset-0 @2xl:h-full @2xl:[mask-image:none]"
         style={{ transform: 'translateY(calc(var(--p, 0) * 3cqh)) scale(calc(1 + var(--p, 0) * 0.03))', transformOrigin: '70% 60%' }}
       >
-        <img
-          src={photoSrc('heroCoffee')}
-          alt={PHOTOS.heroCoffee.alt}
-          decoding="async"
-          className="block size-full object-cover object-[78%_50%] @2xl:object-[56%_50%]"
-        />
+        {/* The photograph's frame, covering this box the way object-cover would (held at 78% across
+            on narrow panels, 56% on wide ones), so the cup can be placed on it in its own units */}
+        <div
+          className="absolute [--fx:0.78] @2xl:[--fx:0.56]"
+          style={
+            {
+              '--fw': 'max(100cqw, 100cqh * 1677 / 938)',
+              width: 'var(--fw)',
+              aspectRatio: '1677 / 938',
+              left: 'calc((100cqw - var(--fw)) * var(--fx))',
+              top: 'calc((100cqh - var(--fw) * 938 / 1677) * 0.5)',
+            } as CSSProperties
+          }
+        >
+          <img src={photoSrc('heroGround')} alt="" decoding="async" className="absolute inset-0" />
+          {/* centred where the cup stood in the original photograph, a little smaller */}
+          <div
+            data-scroll
+            className="absolute"
+            style={{
+              left: '55.6%',
+              top: '10%',
+              width: '27%',
+              aspectRatio: '753 / 1117',
+              transformOrigin: '50% 60%',
+              transform: 'translateY(calc(var(--p, 0) * -9cqh)) rotate(calc(var(--p, 0) * -5deg))',
+            }}
+          >
+            <img src={photoSrc('heroCup')} alt={PHOTOS.heroCup.alt} decoding="async" />
+          </div>
+        </div>
       </div>
 
       <div className="fold-mono absolute inset-x-[5cqw] top-[4.5cqh] flex justify-between text-[10px] text-[var(--paper)]/60 @2xl:text-[11px]">
@@ -288,9 +325,10 @@ function Wordmark() {
         <figure>
           <In kind="rise" className="overflow-hidden bg-[var(--kraft-light)] py-[5cqh]">
             <div className="relative mx-auto w-fit">
-              <Mark viewBox="190 -10 540 664" className="block h-[38cqh] max-h-[360px] text-[var(--ink)]" />
+              {/* the O and the L alone: the F ends at 217, the D starts at 727 */}
+              <Mark viewBox="220 -10 500 445" className="block h-[38cqh] max-h-[360px] text-[var(--ink)]" />
               {/* where the O meets the L */}
-              <span aria-hidden className="absolute inset-y-[-3cqh] w-px bg-[var(--signal)]" style={{ left: `${((498 - 190) / 540) * 100}%` }} />
+              <span aria-hidden className="absolute inset-y-[-3cqh] w-px bg-[var(--signal)]" style={{ left: `${((496.3 - 220) / 500) * 100}%` }} />
             </div>
           </In>
           <figcaption className="mt-4 grid grid-cols-[auto_1fr] gap-x-5">
@@ -307,9 +345,10 @@ function Wordmark() {
         <figure>
           <In kind="rise" delay={0.12} className="overflow-hidden bg-[var(--ink)] py-[5cqh]">
             <div className="relative mx-auto w-fit">
-              <Mark viewBox="470 -10 560 664" className="block h-[38cqh] max-h-[360px] text-[var(--paper)]" />
+              {/* the L and the D alone: the O ends at 490 */}
+              <Mark viewBox="496 -10 514 445" className="block h-[38cqh] max-h-[360px] text-[var(--paper)]" />
               {/* the open gap between the L and the D */}
-              <span aria-hidden className="absolute inset-y-[-3cqh] w-px bg-[var(--signal)]" style={{ left: `${((706 - 470) / 560) * 100}%` }} />
+              <span aria-hidden className="absolute inset-y-[-3cqh] w-px bg-[var(--signal)]" style={{ left: `${((720.5 - 496) / 514) * 100}%` }} />
             </div>
           </In>
           <figcaption className="mt-4 grid grid-cols-[auto_1fr] gap-x-5">
@@ -326,295 +365,117 @@ function Wordmark() {
 
       {/* in use, at scale */}
       <div className="mt-[10cqh] grid grid-cols-2 gap-[2.5cqw] @2xl:grid-cols-4">
-        {[
-          { bg: 'var(--signal)', fg: 'var(--ink)', size: '72%', label: 'Sticker' },
-          { bg: 'var(--ink)', fg: 'var(--paper)', size: '46%', label: 'Cup / 40 mm' },
-          { bg: 'var(--kraft)', fg: 'var(--ink)', size: '30%', label: 'Bag stamp' },
-          { bg: '#fff', fg: 'var(--ink)', size: '16%', label: 'Receipt / 14 mm' },
-        ].map(({ bg, fg, size, label }, i) => (
+        {(
+          [
+            { k: 'markSticker', label: 'Sticker' },
+            { k: 'markCup', label: 'Cup / 40 mm' },
+            { k: 'markBag', label: 'Bag stamp' },
+            { k: 'markReceipt', label: 'Receipt / 14 mm' },
+          ] as const
+        ).map(({ k, label }, i) => (
           <In key={label} kind="rise" delay={i * 0.07}>
-            <div className="grid aspect-square place-items-center" style={{ background: bg, color: fg }}>
-              <Mark style={{ width: size }} />
-            </div>
+            <Photo k={k} className="aspect-[3/4] w-full" />
             <p className="fold-mono mt-2 text-[10px] text-[var(--ink)]/55">{label}</p>
           </In>
         ))}
       </div>
-      <In kind="rise" className="mt-[8cqh] flex flex-col gap-4 border-t border-[var(--ink)]/15 pt-[4cqh] @2xl:flex-row @2xl:items-end @2xl:gap-[4cqw]">
-        <Mark className="w-[38cqw] max-w-[260px] text-[var(--ink)] @2xl:w-[22cqw]" />
-        <p className="fold-mono text-[10px] text-[var(--ink)]/70 @2xl:text-[11px]">
-          Brunch /<br />
-          Bakery /<br />
-          Specialty coffee /<br />
-          All day
-        </p>
-        <p className="fold-mono text-[10px] text-[var(--ink)]/45 @2xl:ml-auto @2xl:max-w-[30ch] @2xl:text-right">
-          Primary lockup. The descriptor is always set in mono, always broken by slashes, never centred.
-        </p>
-      </In>
     </section>
   )
 }
 
-// ---------------------------------------------------------------- 03 The fold system
+// ---------------------------------------------------------------- 03 Packaging
 
-const PRINCIPLES: { word: string; note: string; bg: string; fg: string; demo: ReactNode }[] = [
-  {
-    word: 'Hide',
-    note: 'A plane covers part of the mark.',
-    bg: 'var(--paper)',
-    fg: 'var(--ink)',
-    demo: (
-      <div className="relative">
-        <Mark className="w-full" />
-        <span className="absolute inset-0 bg-[var(--signal)]" style={{ clipPath: 'polygon(0 55%, 100% 20%, 100% 100%, 0 100%)' }} />
-      </div>
-    ),
-  },
-  {
-    word: 'Reveal',
-    note: 'An opening shows what is inside.',
-    bg: 'var(--ink)',
-    fg: 'var(--paper)',
-    demo: (
-      <div className="relative aspect-square">
-        <Photo k="croissantMacro" className="absolute inset-0" style={{ clipPath: 'inset(32% 0 32% 0)' }} />
-      </div>
-    ),
-  },
-  {
-    word: 'Layer',
-    note: 'Planes stack, each slightly shifted.',
-    bg: 'var(--kraft-light)',
-    fg: 'var(--ink)',
-    demo: (
-      <div className="relative aspect-square">
-        {['var(--paper)', 'var(--kraft)', 'var(--signal)', 'var(--ink)'].map((c, i) => (
-          <span key={c} className="absolute size-[62%]" style={{ background: c, left: `${i * 12}%`, top: `${i * 12}%` }} />
-        ))}
-      </div>
-    ),
-  },
-  {
-    word: 'Overlap',
-    note: 'Two things occupy one space.',
-    bg: 'var(--paper)',
-    fg: 'var(--ink)',
-    demo: (
-      <div className="relative aspect-square">
-        <Photo k="sandwichWrap" className="absolute left-0 top-0 size-[70%]" />
-        <span className="absolute bottom-0 right-0 size-[60%] bg-[var(--signal)] mix-blend-multiply" />
-      </div>
-    ),
-  },
-  {
-    word: 'Wrap',
-    note: 'A band holds everything together.',
-    bg: 'var(--signal)',
-    fg: 'var(--ink)',
-    demo: (
-      <div className="relative grid aspect-square place-items-center">
-        <span className="absolute inset-x-[18%] inset-y-[8%] bg-[var(--paper)]" />
-        <span className="absolute inset-x-0 top-[40%] h-[22%] bg-[var(--ink)]" />
-        <Mark className="relative w-[62%] text-[var(--paper)]" />
-      </div>
-    ),
-  },
-  {
-    word: 'Compress',
-    note: 'The mark presses together.',
-    bg: 'var(--ink)',
-    fg: 'var(--paper)',
-    demo: <Mark className="w-full origin-left text-[var(--paper)]" style={{ transform: 'scaleX(0.58)' }} />,
-  },
-  {
-    word: 'Tear',
-    note: 'An edge that was not cut.',
-    bg: 'var(--paper)',
-    fg: 'var(--ink)',
-    demo: (
-      <div
-        className="aspect-square bg-[var(--kraft)]"
-        style={{ clipPath: 'polygon(0 0, 100% 0, 100% 52%, 88% 58%, 79% 51%, 66% 62%, 54% 55%, 41% 66%, 30% 58%, 18% 67%, 8% 60%, 0 66%)' }}
-      />
-    ),
-  },
-  {
-    word: 'Continue',
-    note: 'Nothing ends at the edge.',
-    bg: 'var(--kraft)',
-    fg: 'var(--ink)',
-    demo: (
-      <div className="overflow-hidden">
-        <Mark className="w-[190%] text-[var(--ink)]" />
-      </div>
-    ),
-  },
+// The one move every piece makes
+const MOVE: [string, string][] = [
+  ['Close', 'Lid, flap or wrap'],
+  ['Fold', 'One corner, turned back'],
+  ['Signal', 'Seals it, shows where to open'],
 ]
 
-// Eight panels, folded flat, open one after another as the chapter is held in place
-function FoldSystem() {
-  const ref = useScrollProgress<HTMLDivElement>('pin')
-  return (
-    <section ref={ref} className="relative bg-[var(--ink)] text-[var(--paper)]" style={{ height: '300cqh' }}>
-      <div className="sticky top-0 flex flex-col overflow-hidden px-[4cqw] pb-[5cqh] pt-[7cqh]" style={{ height: '100cqh' }}>
-        <div className="flex flex-col gap-3 @2xl:flex-row @2xl:items-end @2xl:justify-between">
-          <div>
-            <Head n="03" title="The fold system" light />
-            <h3 className="fold-display mt-4" style={{ fontSize: 'max(26px, 5.2cqw)' }}>
-              Eight ways to fold anything.
-            </h3>
-          </div>
-          <p className="max-w-[44ch] text-[12px] leading-relaxed text-[var(--paper)]/60 @2xl:text-[13px]">
-            Not a pattern library — a set of physical moves. Any surface FOLD touches can do one of these, and the layouts in
-            this case study use them too.
-          </p>
-        </div>
-        <div className="mt-[4cqh] grid flex-1 grid-cols-4 grid-rows-2 gap-[0.8cqw] @2xl:grid-cols-8 @2xl:grid-rows-1" style={{ perspective: '1400px' }}>
-          {PRINCIPLES.map(({ word, note, bg, fg, demo }, i) => (
-            <div
-              key={word}
-              data-scroll
-              className="relative flex min-h-0 flex-col justify-between overflow-hidden p-[1.2cqw]"
-              style={{
-                background: bg,
-                color: fg,
-                transformOrigin: i % 2 ? 'right center' : 'left center',
-                transform: `rotateY(calc((1 - clamp(0, var(--p, 0) * 9.5 - ${i * 1.05}, 1)) * ${i % 2 ? -84 : 84}deg))`,
-              }}
-            >
-              <span className="fold-mono text-[9px] opacity-60 @2xl:text-[10px]">{String(i + 1).padStart(2, '0')}</span>
-              <div className="my-[1.5cqh] w-full">{demo}</div>
-              <div>
-                <p className="fold-display" style={{ fontSize: 'max(15px, 2.2cqw)' }}>
-                  {word}
-                </p>
-                <p className="mt-1 hidden text-[10px] leading-snug opacity-65 @2xl:block">{note}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  )
-}
-
-// ---------------------------------------------------------------- 04 Food / photography
-
-const REEL: { k: PhotoKey; ratio: number; caption: string }[] = [
-  { k: 'croissantMacro', ratio: 381 / 262, caption: 'Lamination' },
-  { k: 'pastryTear', ratio: 165 / 263, caption: 'Tear' },
-  { k: 'sandwichWrap', ratio: 353 / 262, caption: 'Layers' },
-  { k: 'lattePour', ratio: 180 / 263, caption: 'Pour' },
-  { k: 'icedCoffeeCroissant', ratio: 256 / 265, caption: 'Crumb' },
-]
-
-function Photography() {
-  const ref = useScrollProgress<HTMLDivElement>('pin')
-  return (
-    <section className="bg-[var(--ink)] text-[var(--paper)]">
-      <div className="grid gap-[5cqh] px-[5cqw] pb-[6cqh] pt-[10cqh] @2xl:grid-cols-[1.3fr_1fr] @2xl:items-end">
-        <div>
-          <Head n="04" title="Food / photography" light />
-          <In kind="lines" className="fold-display mt-5" style={{ fontSize: 'max(34px, 8cqw)' }}>
-            <span>
-              <span>Close enough</span>
-            </span>
-            <span>
-              <span className="text-[var(--signal)]">to taste.</span>
-            </span>
-          </In>
-        </div>
-        <In kind="rise" className="fold-mono grid grid-cols-2 gap-x-6 gap-y-2 text-[10px] text-[var(--paper)]/65 @2xl:text-[11px]">
-          <span>Warm, directional light</span>
-          <span>Hard, believable shadow</span>
-          <span>Rich warm blacks</span>
-          <span>Crumbs left where they fall</span>
-          <span>Hands, not models</span>
-          <span>Food mid-action</span>
-        </In>
-      </div>
-
-      {/* the reel: held in place, scrolled sideways */}
-      <div ref={ref} className="relative" style={{ height: '320cqh' }}>
-        <div className="sticky top-0 flex items-center overflow-hidden" style={{ height: '100cqh' }}>
-          <div
-            data-scroll
-            className="flex shrink-0 items-end gap-[3cqw] pl-[5cqw] pr-[5cqw]"
-            style={{ transform: 'translateX(calc((100cqw - 100%) * var(--p, 0)))' }}
-          >
-            {REEL.map(({ k, ratio, caption }, i) => (
-              <figure key={k} className="shrink-0" style={{ marginBottom: i % 2 ? '9cqh' : 0 }}>
-                <Photo
-                  k={k}
-                  style={{ height: i % 2 ? '52cqh' : '66cqh', width: `calc(${i % 2 ? 52 : 66}cqh * ${ratio})` }}
-                />
-                <figcaption className="fold-mono mt-3 flex gap-3 text-[10px] text-[var(--paper)]/55">
-                  <span>{String(i + 1).padStart(2, '0')}</span>
-                  <span>{caption}</span>
-                </figcaption>
-              </figure>
-            ))}
-            <p className="fold-display w-[60cqw] shrink-0 self-center @2xl:w-[38cqw]" style={{ fontSize: 'max(30px, 6.4cqw)' }}>
-              Crumbs are part <span className="text-[var(--signal)]">of the story.</span>
-            </p>
-          </div>
-        </div>
-      </div>
-    </section>
-  )
-}
-
-// ---------------------------------------------------------------- 05 Packaging
-
-const PACKS: { k: PhotoKey; tag: string; className: string; drift: number }[] = [
-  { k: 'cupHot', tag: 'Cup / 8 oz', className: '@2xl:left-[3cqw] @2xl:top-[22cqh] @2xl:w-[30cqw]', drift: -14 },
-  { k: 'kraftBag', tag: 'Carrier bag', className: '@2xl:right-[4cqw] @2xl:top-[8cqh] @2xl:w-[26cqw]', drift: 10 },
-  { k: 'boxesStack', tag: 'Pastry box', className: '@2xl:left-[30cqw] @2xl:top-[52cqh] @2xl:w-[36cqw]', drift: -6 },
-  { k: 'boxOrange', tag: 'Corner seal', className: '@2xl:right-[2cqw] @2xl:top-[70cqh] @2xl:w-[24cqw]', drift: 16 },
-  { k: 'pastryBag', tag: 'Pastry bag', className: '@2xl:left-[6cqw] @2xl:top-[96cqh] @2xl:w-[24cqw]', drift: 8 },
-  { k: 'napkins', tag: 'Napkin', className: '@2xl:left-[37cqw] @2xl:top-[112cqh] @2xl:w-[22cqw]', drift: -12 },
-  { k: 'stickers', tag: 'Sticker', className: '@2xl:right-[6cqw] @2xl:top-[118cqh] @2xl:w-[22cqw]', drift: 6 },
-  { k: 'boxOpen', tag: 'Opened', className: '@2xl:left-[14cqw] @2xl:top-[150cqh] @2xl:w-[30cqw]', drift: -9 },
+// The range, set out like a catalogue: same tile, same caption, so the fold is what differs
+const PACKS: { k: PhotoKey; name: string; note: string }[] = [
+  { k: 'cupHot', name: 'Cup', note: '8 oz' },
+  { k: 'kraftBag', name: 'Carrier bag', note: 'Kraft' },
+  { k: 'boxOrange', name: 'Corner seal', note: 'Signal' },
+  { k: 'pastryBag', name: 'Pastry bag', note: 'Sticker seal' },
+  { k: 'napkins', name: 'Napkin', note: 'Printed' },
+  { k: 'stickers', name: 'Sticker', note: 'Signal' },
+  { k: 'boxOpen', name: 'Pastry box', note: 'Opened' },
+  { k: 'wrapPaper', name: 'Wrap', note: 'Printed paper' },
 ]
 
 function Packaging() {
-  const ref = useScrollProgress<HTMLDivElement>('cross')
   return (
-    <section ref={ref} className="relative bg-[var(--kraft-light)] px-[5cqw] pb-[12cqh] pt-[10cqh]">
-      <div className="relative z-10 @2xl:max-w-[54cqw]">
-        <Head n="05" title="Packaging" />
-        <In kind="lines" className="fold-display mt-5" style={{ fontSize: 'max(34px, 7.6cqw)' }}>
-          <span>
-            <span>Folded,</span>
-          </span>
-          <span>
-            <span>not decorated.</span>
-          </span>
-        </In>
-        <p className="mt-5 max-w-[46ch] text-[13px] leading-relaxed text-[var(--ink)]/75">
+    <section className="bg-[var(--kraft-light)] px-[5cqw] pb-[12cqh] pt-[10cqh]">
+      <div className="grid gap-[4cqh] @2xl:grid-cols-[1.3fr_1fr] @2xl:items-end @2xl:gap-[5cqw]">
+        <div>
+          <Head n="03" title="Packaging" />
+          <In kind="lines" className="fold-display mt-5" style={{ fontSize: 'max(34px, 7.6cqw)' }}>
+            <span>
+              <span>Folded,</span>
+            </span>
+            <span>
+              <span>not decorated.</span>
+            </span>
+          </In>
+        </div>
+        <In kind="rise" as="p" className="max-w-[46ch] text-[13px] leading-relaxed text-[var(--ink)]/75">
           Every piece closes the same way: a corner folds back and the signal colour shows underneath. The fold is the brand
           mark on the move — it seals, it tells you where to open, and it is still there when the paper is crumpled.
-        </p>
+        </In>
       </div>
-      <div className="relative mt-[6cqh] grid grid-cols-2 gap-[4cqw] @2xl:mt-0 @2xl:block @2xl:h-[182cqh]">
-        {PACKS.map(({ k, tag, className, drift }) => (
-          <figure
-            key={k}
-            data-scroll
-            className={`@2xl:absolute ${className}`}
-            style={{ transform: `translateY(calc((var(--p, 0.5) - 0.5) * ${drift}cqh))` }}
-          >
-            <Photo k={k} className="aspect-[4/4.2] w-full shadow-[0_24px_50px_-28px_rgba(21,19,17,0.55)]" />
-            <figcaption className="fold-mono mt-2 text-[10px] text-[var(--ink)]/60">{tag}</figcaption>
-          </figure>
+
+      {/* the move, beside the piece that shows it best */}
+      <div className="mt-[8cqh] grid gap-[5cqh] @2xl:grid-cols-12 @2xl:items-end @2xl:gap-[4cqw]">
+        <In kind="open" className="@2xl:col-span-8">
+          <Photo k="packBoxes" className="aspect-[1312/1199] w-full" />
+        </In>
+        <div className="border-t border-[var(--ink)]/20 @2xl:col-span-4">
+          {MOVE.map(([word, note], i) => (
+            <In
+              key={word}
+              kind="rise"
+              delay={i * 0.1}
+              className="grid grid-cols-[auto_1fr] items-baseline gap-x-5 border-b border-[var(--ink)]/20 py-[2.4cqh]"
+            >
+              <span className="fold-mono text-[10px] text-[var(--ink)]/45">{String(i + 1).padStart(2, '0')}</span>
+              <div>
+                <p className={`fold-display ${i === 2 ? 'text-[var(--signal)]' : ''}`} style={{ fontSize: 'max(24px, 3.2cqw)' }}>
+                  {word}
+                </p>
+                <p className="fold-mono mt-1 text-[10px] text-[var(--ink)]/60">{note}</p>
+              </div>
+            </In>
+          ))}
+        </div>
+      </div>
+
+      {/* the range */}
+      <div className="fold-mono mt-[11cqh] flex justify-between border-t border-[var(--ink)]/20 pt-3 text-[10px] text-[var(--ink)]/55 @2xl:text-[11px]">
+        <span>The range</span>
+        <span>{PACKS.length} pieces / 1 move</span>
+      </div>
+      <div className="mt-[4cqh] grid grid-cols-2 gap-x-[3cqw] gap-y-[5cqh] @2xl:grid-cols-4 @2xl:gap-x-[2cqw]">
+        {PACKS.map(({ k, name, note }, i) => (
+          <In key={k} as="figure" kind="rise" delay={(i % 4) * 0.08} className="group">
+            <div className="overflow-hidden bg-[var(--paper)]">
+              <Photo k={k} className="aspect-[1358/1159] w-full transition-transform duration-700 ease-out group-hover:scale-[1.03]" />
+            </div>
+            <figcaption className="fold-mono mt-3 grid grid-cols-[auto_1fr] gap-x-3 text-[10px]">
+              <span className="text-[var(--ink)]/45">{String(i + 1).padStart(2, '0')}</span>
+              <span>
+                {name}
+                <span className="block text-[var(--ink)]/55">{note}</span>
+              </span>
+            </figcaption>
+          </In>
         ))}
       </div>
     </section>
   )
 }
 
-// ---------------------------------------------------------------- 06 Physical space
+// ---------------------------------------------------------------- 04 Physical space
 
 const MATERIALS = [
   { name: 'Concrete', hex: '#B9B2A7', bg: 'var(--concrete)', fg: 'var(--ink)' },
@@ -629,15 +490,22 @@ function Space() {
     <section className="bg-[var(--ink)] pb-[12cqh] text-[var(--paper)]">
       <div className="relative">
         <In kind="open">
-          <Photo k="storefront" className="h-[48cqh] w-full @2xl:h-[66cqh]" />
+          {/* at the photograph's own proportions, so it is never cropped, whatever the screen */}
+          <Photo k="storefront" className="aspect-[2/1] w-full" />
         </In>
+        {/* a soft shade from the top-left, so the running head reads over the bright tree */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0"
+          style={{ background: 'radial-gradient(ellipse 60% 55% at 0% 0%, rgba(21,19,17,0.9) 0%, rgba(21,19,17,0.55) 40%, transparent 80%)' }}
+        />
         <div className="absolute left-[5cqw] top-[5cqh]">
-          <Head n="06" title="Physical space" light />
+          <Head n="04" title="Physical space" light />
         </div>
       </div>
       <div className="grid gap-[5cqw] px-[5cqw] pt-[8cqh] @2xl:grid-cols-[1.45fr_1fr]">
         <In kind="drop">
-          <Photo k="counter" className="aspect-[349/263] w-full" />
+          <Photo k="counter" className="aspect-[4/3] w-full" />
         </In>
         <div className="flex flex-col justify-between gap-[5cqh]">
           <In kind="lines" className="fold-display" style={{ fontSize: 'max(30px, 5.6cqw)' }}>
@@ -656,7 +524,7 @@ function Space() {
             orange appears only where something folds — on the A-frame, the boxes, the corner of the menu.
           </p>
           <In kind="rise" delay={0.1} className="ml-auto w-[54%]">
-            <Photo k="aFrame" className="aspect-[233/265] w-full" />
+            <Photo k="aFrame" className="aspect-[3/4] w-full" />
           </In>
         </div>
       </div>
@@ -684,285 +552,901 @@ function Space() {
   )
 }
 
-// ---------------------------------------------------------------- 07 Menu / print
+// ---------------------------------------------------------------- 05 Menu / print
 
-const MENU: [string, [string, string][]][] = [
-  ['Coffee', [['Espresso', '2.50'], ['Americano', '2.80'], ['Cappuccino', '3.20'], ['Latte', '3.50'], ['Flat white', '3.50'], ['Cold brew', '3.80']]],
-  ['Pastry', [['Croissant', '3.00'], ['Pain au chocolat', '3.50'], ['Cinnamon roll', '4.20'], ['Seasonal pastry', '4.50']]],
-  ['Sandwiches', [['Focaccia', '8.50'], ['Chicken sandwich', '8.50'], ['Avocado toast', '7.50'], ['Seasonal special', '9.00']]],
-]
-
-function Print() {
+// A printed piece's caption: its number in the set, what it is, and a note on it
+function Piece({ n, name, note, light = false }: { n: string; name: string; note: string; light?: boolean }) {
   return (
-    <section className="relative overflow-hidden bg-[#d8d1c6] px-[5cqw] pb-[14cqh] pt-[10cqh]">
-      <Head n="07" title="Menu / print" />
-      <h3 className="fold-display mt-5 max-w-[14ch]" style={{ fontSize: 'max(30px, 6.4cqw)' }}>
-        Paper that does what it says.
-      </h3>
-
-      <div className="relative mt-[7cqh] grid gap-[6cqh] @2xl:block @2xl:h-[118cqh]">
-        {/* the menu: folded down the middle, its corner turned */}
-        <In kind="drop" className="relative @2xl:absolute @2xl:left-[2cqw] @2xl:top-0 @2xl:w-[48cqw] @2xl:-rotate-[2deg]">
-          <div
-            className="relative bg-[var(--paper)] p-[5%] shadow-[0_30px_60px_-30px_rgba(21,19,17,0.5)]"
-            style={{ backgroundImage: 'linear-gradient(90deg, transparent 49.6%, rgba(21,19,17,0.07) 50%, transparent 52%)' }}
-          >
-            <div className="flex items-start justify-between gap-4">
-              <Mark className="w-[34%] text-[var(--ink)]" />
-              <p className="fold-mono text-right text-[9px] text-[var(--ink)]/70 @2xl:text-[10px]">
-                Brunch / Bakery /<br />
-                Specialty coffee /<br />
-                All day
-              </p>
-            </div>
-            <div className="mt-[8%] grid gap-[6%] @2xl:grid-cols-2">
-              {MENU.map(([group, items]) => (
-                <div key={group} className="fold-mono text-[10px] @2xl:text-[11px]">
-                  <p className="mb-2 font-medium">{group}</p>
-                  {items.map(([item, price]) => (
-                    <p key={item} className="flex justify-between gap-3 text-[var(--ink)]/75">
-                      <span>{item}</span>
-                      <span>{price}</span>
-                    </p>
-                  ))}
-                </div>
-              ))}
-            </div>
-            <Corner className="bottom-0 right-0 rotate-[-90deg]" size="12cqw" />
-          </div>
-        </In>
-
-        {/* the receipt, torn off */}
-        <In kind="rise" delay={0.15} className="relative mx-auto w-[64%] @2xl:absolute @2xl:right-[16cqw] @2xl:top-[8cqh] @2xl:w-[22cqw] @2xl:rotate-[3deg]">
-          <div
-            className="fold-mono bg-white px-[9%] pb-[18%] pt-[9%] text-[10px] text-[var(--ink)]/80 shadow-[0_30px_50px_-30px_rgba(21,19,17,0.5)]"
-            style={{ clipPath: 'polygon(0 0, 100% 0, 100% 96%, 94% 99%, 88% 96%, 82% 99%, 76% 96%, 70% 99%, 64% 96%, 58% 99%, 52% 96%, 46% 99%, 40% 96%, 34% 99%, 28% 96%, 22% 99%, 16% 96%, 10% 99%, 4% 96%, 0 99%)' }}
-          >
-            <Mark className="mx-auto mb-4 w-[44%] text-[var(--ink)]" />
-            <p className="text-center">Order 0247 — Table 6</p>
-            <p className="my-3 border-t border-dashed border-[var(--ink)]/30" />
-            {[['1 Flat white', '3.50'], ['1 Croissant', '3.00'], ['1 Focaccia', '8.50'], ['1 Cold brew', '3.80']].map(([a, b]) => (
-              <p key={a} className="flex justify-between">
-                <span>{a}</span>
-                <span>{b}</span>
-              </p>
-            ))}
-            <p className="my-3 border-t border-dashed border-[var(--ink)]/30" />
-            <p className="flex justify-between font-medium">
-              <span>Total</span>
-              <span>18.80</span>
-            </p>
-            <p className="mt-5 text-center">Good things ahead.</p>
-          </div>
-        </In>
-
-        {/* sticker and loyalty card */}
-        <In kind="rise" delay={0.25} className="mx-auto grid aspect-square w-[40%] place-items-center rounded-full bg-[var(--signal)] @2xl:absolute @2xl:right-[3cqw] @2xl:top-[58cqh] @2xl:w-[15cqw] @2xl:-rotate-[12deg]">
-          <Mark className="w-[64%] text-[var(--ink)]" />
-        </In>
-        <In kind="rise" delay={0.3} className="relative @2xl:absolute @2xl:bottom-0 @2xl:left-[30cqw] @2xl:w-[34cqw] @2xl:rotate-[1.5deg]">
-          <div className="relative aspect-[1.6/1] bg-[var(--ink)] p-[6%] text-[var(--paper)] shadow-[0_30px_50px_-30px_rgba(21,19,17,0.6)]">
-            <div className="flex items-start justify-between">
-              <p className="fold-display" style={{ fontSize: 'max(20px, 2.6cqw)' }}>
-                Fold it.
-              </p>
-              <p className="fold-mono text-right text-[9px] text-[var(--paper)]/60">Ninth one is on us</p>
-            </div>
-            <div className="mt-[8%] grid grid-cols-8 gap-[3%]">
-              {Array.from({ length: 8 }, (_, i) => (
-                <span key={i} className="relative aspect-square overflow-hidden border border-[var(--paper)]/40">
-                  {i < 5 && <span className="absolute inset-0 bg-[var(--signal)]" style={{ clipPath: 'polygon(0 0, 100% 0, 0 100%)' }} />}
-                </span>
-              ))}
-            </div>
-          </div>
-        </In>
-      </div>
-    </section>
-  )
-}
-
-// ---------------------------------------------------------------- 08 Campaign
-
-const SLOGANS: { text: string; tone: 'ink' | 'paper'; dir: number }[] = [
-  { text: 'One more layer.', tone: 'ink', dir: -1 },
-  { text: 'Made to come apart.', tone: 'paper', dir: 1 },
-  { text: 'Good things inside.', tone: 'ink', dir: -1 },
-  { text: 'Tear. Dip. Share.', tone: 'paper', dir: 1 },
-]
-
-function Campaign() {
-  const ref = useScrollProgress<HTMLDivElement>('cross')
-  return (
-    <section ref={ref} className="relative overflow-hidden bg-[var(--signal)] pb-[12cqh] pt-[10cqh]">
-      <div className="px-[5cqw]">
-        <Head n="08" title="Campaign / social" />
-      </div>
-      <div className="mt-[6cqh] flex flex-col gap-[3cqh]">
-        {SLOGANS.map(({ text, tone, dir }, i) => (
-          <div key={text}>
-            <p
-              data-scroll
-              className="fold-display whitespace-nowrap"
-              style={{
-                fontSize: 'max(48px, 14cqw)',
-                color: tone === 'ink' ? 'var(--ink)' : 'var(--paper)',
-                transform: `translateX(calc(${i % 2 ? 4 : -2}cqw + (var(--p, 0.5) - 0.5) * ${dir * 36}cqw))`,
-              }}
-            >
-              {text}
-            </p>
-            {i === 1 && (
-              <div className="my-[4cqh] grid grid-cols-[1.6fr_1fr] gap-[3cqw] px-[5cqw]">
-                <In kind="drop">
-                  <Photo k="windowCampaign" className="aspect-[368/265] w-full" />
-                </In>
-                <In kind="drop" delay={0.12} className="-rotate-[3deg] @2xl:mt-[6cqh]">
-                  <Photo k="posterGoodThings" className="aspect-[183/263] w-full" />
-                </In>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-      <p className="fold-mono mt-[6cqh] px-[5cqw] text-[10px] text-[var(--ink)]/70 @2xl:max-w-[60ch] @2xl:text-[11px]">
-        Lines are short, physical and a little impatient — instructions as much as slogans. They run on windows, posters,
-        cup sleeves and stories, always set in the same condensed voice, always broken where you would take a bite.
-      </p>
-    </section>
-  )
-}
-
-// ---------------------------------------------------------------- 09 Digital
-
-function Screen({ children, dark = false }: { children: ReactNode; dark?: boolean }) {
-  return (
-    <div
-      className="relative aspect-[9/18.5] overflow-hidden rounded-[18px] shadow-[0_40px_70px_-40px_rgba(21,19,17,0.55)] ring-1 ring-[var(--ink)]/10"
-      style={{ background: dark ? 'var(--ink)' : 'var(--paper)', color: dark ? 'var(--paper)' : 'var(--ink)' }}
-    >
-      {children}
-    </div>
-  )
-}
-
-function Nav({ active }: { active: string }) {
-  return (
-    <div className="flex items-center justify-between px-[7%] pt-[8%]">
-      <Mark className="w-[26%] text-[var(--ink)]" />
-      <span className="flex flex-col gap-[3px]">
-        <span className="block h-px w-4 bg-[var(--ink)]" />
-        <span className="block h-px w-4 bg-[var(--ink)]" />
-        <span className="block h-px w-4 bg-[var(--ink)]" />
+    <figcaption className={`fold-mono mt-3 grid grid-cols-[auto_1fr] gap-x-3 text-[10px] ${light ? 'text-[var(--paper)]' : 'text-[var(--ink)]'}`}>
+      <span className="opacity-45">05.{n}</span>
+      <span>
+        {name}
+        <span className="block opacity-55">{note}</span>
       </span>
-      <div className="fold-mono absolute inset-x-[7%] top-[12%] flex justify-between text-[8px]">
-        {['Today', 'Menu', 'Bakery', 'Visit'].map((t) => (
-          <span key={t} className={t === active ? 'border-b border-[var(--signal)] text-[var(--ink)]' : 'text-[var(--ink)]/45'}>
-            {t}
-          </span>
-        ))}
-      </div>
-    </div>
+    </figcaption>
   )
 }
 
-function Digital() {
+// The printed set, laid out like sheets on a table: tall and wide pieces alternating on an
+// uneven grid, each unfolding into view, each drifting at its own rate as the chapter passes so
+// the set has depth. The phrase the poster carries sits in the middle of it, set large.
+function Print() {
+  const ref = useScrollProgress<HTMLElement>('cross')
+  const drift = (d: number): CSSProperties => ({ transform: `translateY(calc((var(--p, 0.5) - 0.5) * ${d}cqh))` })
   return (
-    <section className="bg-[var(--paper)] px-[5cqw] pb-[12cqh] pt-[10cqh]">
-      <div className="grid gap-[4cqh] @2xl:grid-cols-[1fr_1fr] @2xl:items-end">
+    <section ref={ref} className="relative overflow-hidden bg-[#d8d1c6] px-[5cqw] pb-[14cqh] pt-[10cqh]">
+      <div className="grid gap-[4cqh] @2xl:grid-cols-[1.3fr_1fr] @2xl:items-end @2xl:gap-[5cqw]">
         <div>
-          <Head n="09" title="Digital" />
-          <In kind="lines" className="fold-display mt-5" style={{ fontSize: 'max(32px, 7cqw)' }}>
+          <Head n="05" title="Menu / print" />
+          <In kind="lines" className="fold-display mt-5" style={{ fontSize: 'max(34px, 7cqw)' }}>
             <span>
-              <span>Four words</span>
+              <span>Paper that</span>
             </span>
             <span>
-              <span>of navigation.</span>
+              <span className="text-[var(--signal)]">does what it says.</span>
             </span>
           </In>
         </div>
-        <p className="max-w-[44ch] text-[13px] leading-relaxed text-[var(--ink)]/75">
-          Today, Menu, Bakery, Visit — the site answers the four things people come for. The fold carries over as a single
-          rule: content is revealed by opening, never by sliding in. Prices are mono, like the receipt.
-        </p>
+        <In kind="rise" as="p" className="max-w-[44ch] text-[13px] leading-relaxed text-[var(--ink)]/75">
+          One ink and the signal colour, on uncoated stock. The wordmark leads, the mono line informs, and the folded corner
+          turns up wherever the paper goes — the menu, the receipt, the card in a wallet, the shirt behind the counter.
+        </In>
       </div>
 
-      <div className="mt-[8cqh] grid grid-cols-3 items-start gap-[3cqw]">
-        {/* Today */}
-        <In kind="rise">
-          <Screen>
-            <Nav active="Today" />
-            <div className="absolute inset-x-0 top-[20%] h-[44%]">
-              <div className="size-full" style={{ clipPath: 'polygon(0 0, 100% 0, 100% 100%, 0 100%)' }}>
-                <Photo k="croissantMacro" className="size-full" />
-              </div>
-              <span className="absolute left-0 top-0 h-[42%] w-[30%] bg-[var(--signal)]" style={{ clipPath: 'polygon(0 0, 100% 0, 0 100%)' }} />
+      {/* the menu: its cover, then opened */}
+      <div className="mt-[9cqh] grid grid-cols-12 items-start gap-x-[3cqw] gap-y-[6cqh]">
+        <figure data-scroll className="col-span-12 @2xl:col-span-5" style={drift(-8)}>
+          <In kind="open">
+            <div className="relative">
+              <Photo k="printMenuCover" className="aspect-[2/3] w-full shadow-[0_40px_70px_-40px_rgba(21,19,17,0.6)]" />
+              <Corner className="right-0 top-0" size="7cqw" />
             </div>
-            <div className="absolute inset-x-[7%] bottom-[7%]">
-              <p className="fold-mono text-[8px] leading-snug text-[var(--ink)]/75">
-                Brunch /<br />
-                Bakery /<br />
-                Specialty coffee /<br />
-                All day
-              </p>
-              <span className="fold-mono mt-[10%] inline-flex items-center gap-2 rounded-full bg-[var(--ink)] px-3 py-1.5 text-[8px] text-[var(--paper)]">
-                See menu →
-              </span>
-            </div>
-          </Screen>
-          <p className="fold-mono mt-3 text-[10px] text-[var(--ink)]/55">Today</p>
-        </In>
-        {/* Menu */}
-        <In kind="rise" delay={0.1} className="mt-[8cqh]">
-          <Screen>
-            <Nav active="Menu" />
-            <div className="absolute inset-x-[7%] top-[20%]">
-              <p className="fold-display text-[clamp(14px,2.4cqw,30px)]">Pastry</p>
-              <span className="fold-mono mt-1 inline-block bg-[var(--signal)] px-1.5 py-0.5 text-[7px] text-[var(--ink)]">Fresh from 7:00</span>
-              <div className="fold-mono mt-[12%] text-[8px]">
-                {MENU[1][1].map(([item, price], i) => (
-                  <p key={item} className="flex justify-between border-b border-[var(--ink)]/10 py-[6%]" style={{ opacity: i === 0 ? 1 : 0.75 }}>
-                    <span>{item}</span>
-                    <span>{price}</span>
-                  </p>
-                ))}
-              </div>
-              <p className="fold-display mt-[14%] text-[clamp(14px,2.4cqw,30px)] opacity-30">Coffee</p>
-            </div>
-          </Screen>
-          <p className="fold-mono mt-3 text-[10px] text-[var(--ink)]/55">Menu</p>
-        </In>
-        {/* Visit */}
-        <In kind="rise" delay={0.2} className="mt-[3cqh]">
-          <Screen dark>
-            <div className="absolute inset-x-0 top-0 h-[52%] bg-[#2a2622]" style={{ backgroundImage: 'linear-gradient(rgba(239,232,220,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(239,232,220,0.08) 1px, transparent 1px)', backgroundSize: '18px 18px' }}>
-              <span className="absolute left-[46%] top-[44%] size-3 rotate-45 bg-[var(--signal)]" />
-            </div>
-            <div className="absolute inset-x-[7%] top-[58%]">
-              <p className="fold-display text-[clamp(14px,2.4cqw,30px)] text-[var(--paper)]">Visit</p>
-              <p className="fold-mono mt-[8%] text-[8px] leading-relaxed text-[var(--paper)]/70">
-                Mon–Fri 7:00–18:00
-                <br />
-                Sat–Sun 8:00–17:00
-              </p>
-              <p className="fold-mono mt-[8%] text-[8px] text-[var(--paper)]/45">Open now — counter + tables</p>
-            </div>
-          </Screen>
-          <p className="fold-mono mt-3 text-[10px] text-[var(--ink)]/55">Visit</p>
-        </In>
+          </In>
+          <Piece n="1" name="Menu" note="Cover" />
+        </figure>
+        <figure data-scroll className="col-span-12 @2xl:col-span-7 @2xl:mt-[22cqh]" style={drift(5)}>
+          <In kind="drop">
+            <Photo k="printMenuSpread" className="aspect-[3/2] w-full shadow-[0_40px_70px_-40px_rgba(21,19,17,0.6)]" />
+          </In>
+          <Piece n="2" name="Menu" note="Spread — coffee, brunch, bakery, all day" />
+        </figure>
+      </div>
+
+      {/* what's handed over the counter */}
+      <div className="mt-[10cqh] grid grid-cols-12 items-start gap-x-[3cqw] gap-y-[6cqh]">
+        <figure data-scroll className="col-span-12 @2xl:col-span-7" style={drift(-4)}>
+          <In kind="drop">
+            <Photo k="printReceipt" className="aspect-[3/2] w-full shadow-[0_40px_70px_-40px_rgba(21,19,17,0.6)]" />
+          </In>
+          <Piece n="3" name="Receipt" note="Mono, torn edge, signed off in the voice" />
+        </figure>
+        <figure data-scroll className="col-span-10 col-start-3 @2xl:col-span-4 @2xl:col-start-9 @2xl:-mt-[6cqh] @2xl:rotate-[1.5deg]" style={drift(9)}>
+          <In kind="open">
+            <Photo k="printLoyalty" className="aspect-[2/3] w-full shadow-[0_40px_70px_-40px_rgba(21,19,17,0.6)]" />
+          </In>
+          <Piece n="4" name="Loyalty card" note="Eight folds, one coffee" />
+        </figure>
+      </div>
+
+      {/* on the wall and on the staff: the poster's line, set large between them */}
+      <div className="mt-[10cqh] grid grid-cols-12 items-center gap-x-[3cqw] gap-y-[6cqh]">
+        <figure data-scroll className="col-span-8 @2xl:col-span-4" style={drift(-7)}>
+          <In kind="open">
+            <Photo k="printPoster" className="aspect-[2/3] w-full shadow-[0_40px_70px_-40px_rgba(21,19,17,0.6)]" />
+          </In>
+          <Piece n="5" name="Poster" note="Window and wall" />
+        </figure>
+        <div className="col-span-12 @2xl:col-span-4">
+          <In kind="lines" className="fold-display" style={{ fontSize: 'max(40px, 6.2cqw)' }}>
+            <span>
+              <span>Good</span>
+            </span>
+            <span>
+              <span>things</span>
+            </span>
+            <span>
+              <span className="text-[var(--signal)]">ahead.</span>
+            </span>
+          </In>
+          <In kind="rise" delay={0.2} className="fold-mono mt-[3cqh] text-[10px] text-[var(--ink)]/60 @2xl:text-[11px]">
+            Coffee /<br />
+            Food /<br />
+            People /<br />
+            Neighbourhood
+          </In>
+        </div>
+        <figure data-scroll className="col-span-10 col-start-3 @2xl:col-span-4 @2xl:col-start-9 @2xl:mt-[16cqh]" style={drift(6)}>
+          <In kind="drop">
+            <Photo k="printTee" className="aspect-[1312/1199] w-full shadow-[0_40px_70px_-40px_rgba(21,19,17,0.6)]" />
+          </In>
+          <Piece n="6" name="Staff tee" note="The fold, worn" />
+        </figure>
       </div>
     </section>
   )
 }
 
-// ---------------------------------------------------------------- 10 Motion principles
+// ---------------------------------------------------------------- 06 Social media
+
+// One post of the feed. Every post's media is 4:5 (master 1080 × 1350); the layout never changes
+// whichever kind it holds.
+type SocialPost =
+  | { id: string; type: 'placeholder' }
+  | { id: string; type: 'image'; src: string; alt: string }
+  | { id: string; type: 'video'; src: string; poster?: string; alt: string }
+
+// The nine posts, in feed order. To fill one, replace its entry, for example:
+//   { id: '03', type: 'image', src: '/projects/fold/social/post-03.webp', alt: '…' },
+//   { id: '06', type: 'video', src: '/projects/fold/social/reel-06.mp4', poster: '/projects/fold/social/reel-06.jpg', alt: '…' },
+// Nothing else needs to change: the feed measures itself, so the sticky journey and the active
+// post stay right whatever the posts hold.
+const SOCIAL_POSTS: SocialPost[] = [
+  {
+    id: '01',
+    type: 'image',
+    src: '/projects/fold/social/post-01.jpg',
+    alt: '”Start with a fold.” — a FOLD takeaway cup on a sunlit stone ledge, folded signal planes in the corners; Coffee / Athens / Every day',
+  },
+  {
+    id: '02',
+    type: 'image',
+    src: '/projects/fold/social/post-02.jpg',
+    alt: 'Athens, Every Day — a woman walking through an Athens street with a FOLD coffee cup, red fold planes entering from the corner',
+  },
+  {
+    id: '03',
+    type: 'image',
+    src: '/projects/fold/social/post-03.jpg',
+    alt: 'Same Routine Different Angle — a FOLD poster on a concrete wall with a kraft paper coffee cup, layered fold planes in red and orange',
+  },
+  {
+    id: '04',
+    type: 'image',
+    src: '/projects/fold/social/post-04.jpg',
+    alt: 'One More Layer — a FOLD poster with the wordmark showing fold planes entering from multiple corners, kraft paper aesthetic',
+  },
+  {
+    id: '05',
+    type: 'image',
+    src: '/projects/fold/social/post-05.jpg',
+    alt: 'Same Routine Different Angle — a FOLD coffee with latte art on a sunlit stone surface, paired with a croissant, fold planes in the corner',
+  },
+  { id: '06', type: 'placeholder' },
+  { id: '07', type: 'placeholder' },
+  { id: '08', type: 'placeholder' },
+  { id: '09', type: 'placeholder' },
+]
+
+// A warm white, so the chapter reads as a reset between the print and the website chapters
+const SOCIAL_BG = '#f7f3ec'
+// How long the phone holds still before the feed starts and after it ends (of the view height)
+const SOCIAL_HOLD = 0.16
+// Below this panel width (px) there's no phone: the feed is laid out in the page itself
+const SOCIAL_NARROW = 672
+// The active label's colour, cycling through the identity's own colours
+const SOCIAL_ACTIVE = ['var(--signal)', 'var(--ink)']
+
+// A future video post: muted, looping, inline, and playing only while most of it is on screen
+// (and never with reduced motion). Nothing loads until it's first needed.
+function SocialVideo({ post }: { post: Extract<SocialPost, { type: 'video' }> }) {
+  const ref = useRef<HTMLVideoElement>(null)
+  useEffect(() => {
+    const video = ref.current
+    if (!video) return
+    const still = matchMedia('(prefers-reduced-motion: reduce)').matches
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !still) {
+          video.preload = 'auto'
+          video.play().catch(() => {})
+        } else video.pause()
+      },
+      { threshold: 0.5 },
+    )
+    io.observe(video)
+    return () => io.disconnect()
+  }, [])
+  return (
+    <video
+      ref={ref}
+      src={post.src}
+      poster={post.poster}
+      aria-label={post.alt}
+      muted
+      loop
+      playsInline
+      preload="none"
+      className="absolute inset-0 size-full object-cover"
+    />
+  )
+}
+
+// A restrained modern phone: a dark frame, side buttons, a rounded screen that clips what it
+// holds, and a status bar that stays put over it. The screen is a size container, so whatever
+// is inside sizes itself by the screen (cqw). Shared by the social feed (06) and the order app (07).
+function PhoneFrame({ screenRef, height, children }: { screenRef?: RefObject<HTMLDivElement | null>; height: string; children: ReactNode }) {
+  return (
+    <div
+      className="relative bg-[#1b1917] p-[3.2%] shadow-[0_60px_90px_-60px_rgba(21,19,17,0.6),0_0_0_1px_rgba(21,19,17,0.06)]"
+      style={{ height, aspectRatio: '390 / 812', borderRadius: '14% / 6.7%' }}
+    >
+      {/* side buttons */}
+      <span aria-hidden className="absolute -left-[1.4%] top-[18%] h-[6%] w-[1.4%] rounded-l-sm bg-[#1b1917]" />
+      <span aria-hidden className="absolute -left-[1.4%] top-[27%] h-[9%] w-[1.4%] rounded-l-sm bg-[#1b1917]" />
+      <span aria-hidden className="absolute -right-[1.4%] top-[24%] h-[13%] w-[1.4%] rounded-r-sm bg-[#1b1917]" />
+      <div
+        ref={screenRef}
+        className="@container relative size-full overflow-hidden bg-[var(--paper)] text-[var(--ink)]"
+        style={{ borderRadius: '11.5% / 5.4%' }}
+      >
+        <div aria-hidden className="absolute inset-x-0 top-0 z-10 flex h-[12cqw] items-center justify-between bg-[var(--paper)] px-[8%]">
+          <span className="fold-mono text-[3.2cqw]">9:41</span>
+          <span className="absolute left-1/2 top-[22%] h-[50%] w-[30%] -translate-x-1/2 rounded-full bg-[#1b1917]" />
+          <span className="flex items-center gap-[1.4cqw]">
+            <span className="h-[2.2cqw] w-[4cqw] rounded-[1px] bg-[var(--ink)]/80" />
+            <span className="h-[2.4cqw] w-[5.4cqw] rounded-[2px] border border-[var(--ink)]/70" />
+          </span>
+        </div>
+        {children}
+      </div>
+    </div>
+  )
+}
+
+// A post's 4:5 media: a quiet placeholder for now, an image or a video later
+function SocialMedia({ post }: { post: SocialPost }) {
+  return (
+    <div className="relative aspect-[4/5] w-full overflow-hidden bg-[#ebe4d8]">
+      {post.type === 'placeholder' && (
+        <div className="absolute inset-[5%] grid place-items-center border border-[var(--ink)]/12">
+          {/* a small registration mark at the centre */}
+          <span aria-hidden className="absolute left-1/2 top-1/2 h-[9%] w-px -translate-x-1/2 -translate-y-1/2 bg-[var(--ink)]/15" />
+          <span aria-hidden className="absolute left-1/2 top-1/2 h-px w-[9%] -translate-x-1/2 -translate-y-1/2 bg-[var(--ink)]/15" />
+          <div className="fold-mono mt-[34%] text-center text-[var(--ink)]">
+            <p className="text-[3.4cqw]">Post {post.id}</p>
+            <p className="mt-[0.4em] text-[2.6cqw] opacity-45">1080 × 1350 / 4:5</p>
+          </div>
+        </div>
+      )}
+      {post.type === 'image' && (
+        <img src={post.src} alt={post.alt} loading="lazy" decoding="async" className="absolute inset-0 size-full object-cover" />
+      )}
+      {post.type === 'video' && <SocialVideo post={post} />}
+    </div>
+  )
+}
+
+function SocialIcon({ d }: { d: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className="w-[6.2cqw]" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden>
+      <path d={d} />
+    </svg>
+  )
+}
+
+// The FOLD account: the top of the profile, then the posts one after another. Its text is sized
+// by whatever holds it (the phone's screen, or the column on narrow panels), in cqw.
+function SocialFeed({ postRefs }: { postRefs?: RefObject<(HTMLElement | null)[]> }) {
+  const avatar = (size: string) => (
+    <span className="grid shrink-0 place-items-center rounded-full bg-[var(--ink)]" style={{ width: size, aspectRatio: '1' }}>
+      <Mark className="w-[66%] text-[var(--paper)]" />
+    </span>
+  )
+  return (
+    <>
+      {/* the profile */}
+      <div className="px-[5%] pb-[6%] pt-[3%]">
+        <div className="flex items-center gap-[5%]">
+          {avatar('22%')}
+          <div>
+            <p className="fold-display text-[7.4cqw]">Fold</p>
+            <p className="fold-mono mt-[0.3em] text-[3cqw] opacity-55">@fold.athens</p>
+          </div>
+        </div>
+        <p className="fold-mono mt-[5%] text-[3.1cqw]">Coffee / Food / People / Athens</p>
+        {/* highlights, left empty until the content exists */}
+        <div aria-hidden className="mt-[6%] flex gap-[4.5%]">
+          {[0, 1, 2, 3].map((i) => (
+            <span key={i} className="aspect-square w-[15%] rounded-full border border-[var(--ink)]/15 bg-[#ebe4d8]" />
+          ))}
+        </div>
+      </div>
+      <div aria-hidden className="h-px bg-[var(--ink)]/10" />
+
+      {/* the posts */}
+      {SOCIAL_POSTS.map((post, i) => (
+        <article
+          key={post.id}
+          ref={(el) => {
+            if (postRefs) postRefs.current[i] = el
+          }}
+          className="pb-[7%]"
+          aria-label={`Post ${post.id}`}
+        >
+          <div className="flex items-center gap-[3%] px-[4%] py-[3%]">
+            {avatar('8.5%')}
+            <span className="fold-mono text-[3cqw]">fold.athens</span>
+            <span aria-hidden className="ml-auto text-[3.6cqw] leading-none opacity-50">
+              ···
+            </span>
+          </div>
+          <SocialMedia post={post} />
+          <div aria-hidden className="flex items-center gap-[4%] px-[4%] pt-[3.4%]">
+            <SocialIcon d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z" />
+            <SocialIcon d="M20 12a8 8 0 0 1-11.6 7.1L4 20l1-4.2A8 8 0 1 1 20 12Z" />
+            <SocialIcon d="m21 4-9 9M21 4l-6 17-3-8-8-3 17-6Z" />
+            <span className="ml-auto">
+              <SocialIcon d="M6 4h12v16l-6-4-6 4V4Z" />
+            </span>
+          </div>
+          {/* the caption, left as a quiet rule until the copy exists */}
+          <div aria-hidden className="mt-[3.4%] space-y-[1.6%] px-[4%]">
+            <span className="block h-[1.6cqw] w-[72%] rounded-full bg-[var(--ink)]/8" />
+            <span className="block h-[1.6cqw] w-[46%] rounded-full bg-[var(--ink)]/8" />
+          </div>
+        </article>
+      ))}
+    </>
+  )
+}
+
+// 06 — Social media. The FOLD feed, seen through a phone. The section arrives like any other; once
+// it fills the panel the phone holds still, and the same page scroll carries the feed up through
+// its screen: no second scroll, nothing captured. The index on the left follows the post under
+// the middle of the screen. After the last post the phone holds a moment, then the section
+// leaves with the page. The journey's length is measured from the feed itself.
+// On narrow panels there is no phone: the feed is simply laid out in the page.
+function Social() {
+  const scroller = useContext(ScrollerContext)
+  const track = useRef<HTMLElement>(null)
+  const screen = useRef<HTMLDivElement>(null)
+  const feed = useRef<HTMLDivElement>(null)
+  const posts = useRef<(HTMLElement | null)[]>([])
+  const [narrow, setNarrow] = useState(false)
+  // The section's height in phone mode: the panel's own, plus the holds and the feed's travel
+  const [height, setHeight] = useState<number | null>(null)
+  const [active, setActive] = useState(0)
+
+  useEffect(() => {
+    const panel = scroller?.current
+    const t = track.current
+    if (!panel || !t) return
+    let journey = 0
+    let hold = 0
+    let raf = 0
+    let last = -1
+
+    const update = () => {
+      raf = 0
+      const f = feed.current
+      const s = screen.current
+      if (!f || !s) return
+      // How far the section has risen past the top of the panel: the sticky stage holds the phone
+      // in place over this distance, and the feed travels through the middle of it
+      const scrolled = panel.getBoundingClientRect().top - t.getBoundingClientRect().top
+      const y = Math.min(Math.max(scrolled - hold, 0), journey)
+      f.style.transform = `translate3d(0, ${-y}px, 0)`
+      // The active post: the one under the middle of the screen
+      const point = y + s.clientHeight / 2
+      let a = 0
+      posts.current.forEach((p, i) => {
+        if (p && p.offsetTop <= point) a = i
+      })
+      if (a !== last) {
+        last = a
+        setActive(a)
+      }
+    }
+    const measure = () => {
+      const isNarrow = panel.clientWidth < SOCIAL_NARROW
+      setNarrow(isNarrow)
+      const f = feed.current
+      const s = screen.current
+      if (isNarrow || !f || !s) return
+      journey = Math.max(f.scrollHeight - s.clientHeight, 0)
+      hold = panel.clientHeight * SOCIAL_HOLD
+      setHeight(Math.round(panel.clientHeight + hold * 2 + journey))
+      update()
+    }
+    const onScroll = () => {
+      if (!raf) raf = requestAnimationFrame(update)
+    }
+
+    measure()
+    // The panel resizing, and the feed's own height changing (an image or video arriving)
+    const ro = new ResizeObserver(measure)
+    ro.observe(panel)
+    if (feed.current) ro.observe(feed.current)
+    panel.addEventListener('scroll', onScroll, { passive: true })
+    return () => {
+      ro.disconnect()
+      panel.removeEventListener('scroll', onScroll)
+      cancelAnimationFrame(raf)
+    }
+  }, [scroller, narrow])
+
+  const title = (
+    <>
+      <Head n="06" title="Social media" />
+      <h3 className="fold-display mt-4" style={{ fontSize: 'max(30px, 4.6cqw)' }}>
+        Social media.
+      </h3>
+    </>
+  )
+
+  if (narrow)
+    return (
+      <section ref={track} className="px-[5cqw] pb-[12cqh] pt-[10cqh]" style={{ background: SOCIAL_BG }}>
+        {title}
+        <div className="@container mx-auto mt-[6cqh] max-w-[420px] overflow-hidden rounded-[20px] bg-[var(--paper)] pt-[4%] text-[var(--ink)] ring-1 ring-[var(--ink)]/10">
+          <SocialFeed />
+        </div>
+      </section>
+    )
+
+  return (
+    <section ref={track} className="relative" style={{ background: SOCIAL_BG, height: height ?? undefined, minHeight: '100cqh' }}>
+      <div className="sticky top-0 overflow-hidden" style={{ height: '100cqh' }}>
+        {/* the index: one label per post, the one in the phone lit */}
+        <div className="absolute left-[5cqw] top-1/2 -translate-y-1/2">
+          <In kind="rise">{title}</In>
+          <ol className="fold-mono mt-[5cqh] space-y-[1.1cqh] text-[10px] @4xl:text-[11px]">
+            {SOCIAL_POSTS.map((post, i) => {
+              const on = i === active
+              return (
+                <li
+                  key={post.id}
+                  aria-current={on ? 'true' : undefined}
+                  className="flex items-center transition-[color,opacity,translate] duration-[400ms] ease-out motion-reduce:transition-none"
+                  style={{
+                    color: on ? SOCIAL_ACTIVE[i % SOCIAL_ACTIVE.length] : 'var(--ink)',
+                    opacity: on ? 1 : 0.26,
+                    translate: on ? '6px 0' : '0 0',
+                  }}
+                >
+                  <span className="tabular-nums">{post.id}</span>
+                  <span
+                    aria-hidden
+                    className="mx-3 h-px bg-current transition-[width] duration-[400ms] ease-out motion-reduce:transition-none"
+                    style={{ width: on ? 28 : 12 }}
+                  />
+                  <span>Post {post.id}</span>
+                </li>
+              )
+            })}
+          </ol>
+        </div>
+
+        {/* the phone, slightly right of centre */}
+        <div className="absolute left-[57%] top-1/2 -translate-x-1/2 -translate-y-1/2">
+          <In kind="rise" delay={0.1}>
+            <PhoneFrame screenRef={screen} height="min(840px, 86cqh)">
+              {/* the status bar stays put; the feed passes under it */}
+              <div ref={feed} className="relative pb-[24%] pt-[12cqw] will-change-transform">
+                <SocialFeed postRefs={posts} />
+              </div>
+            </PhoneFrame>
+          </In>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ---------------------------------------------------------------- 07 Order ahead
+
+// The fold, as the packaging prints it: flat planes in the fold colours, entering from a corner
+// of whatever they sit on (top-right as drawn; turned for the other corners)
+function FoldPlanes({ corner = 'tr', className = '' }: { corner?: 'tr' | 'bl'; className?: string }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 100 100"
+      preserveAspectRatio="none"
+      className={`pointer-events-none absolute ${className}`}
+      style={{ transform: corner === 'bl' ? 'rotate(180deg)' : undefined }}
+    >
+      <polygon points="100,0 44,0 100,62" fill="var(--orange)" />
+      <polygon points="100,0 70,0 100,32" fill="var(--red)" />
+      <polygon points="100,32 100,62 80,42" fill="var(--deep-red)" />
+    </svg>
+  )
+}
+
+interface OrderItem {
+  id: string
+  name: string
+  note: string
+  price: number
+  photo?: PhotoKey
+}
+// From the printed menu (05)
+const COFFEES: OrderItem[] = [
+  { id: 'espresso', name: 'Espresso', note: 'Hot', price: 2.2 },
+  { id: 'flat-white', name: 'Flat white', note: 'Hot', price: 3.5 },
+  { id: 'freddo', name: 'Freddo espresso', note: 'Iced', price: 3.8 },
+  { id: 'iced-latte', name: 'Iced latte', note: 'Iced', price: 3.8 },
+]
+const PASTRIES: OrderItem[] = [
+  { id: 'croissant', name: 'Croissant', note: 'Bakery', price: 2.8, photo: 'croissantMacro' },
+  { id: 'pastry', name: 'Pain au chocolat', note: 'Bakery', price: 3.0, photo: 'pastryBag' },
+  { id: 'sandwich', name: 'Turkey sandwich', note: 'All day', price: 7.0, photo: 'wrapPaper' },
+]
+const ORDER_STEPS = [
+  { name: 'Coffee', note: 'Pick a drink' },
+  { name: 'Pastry', note: 'Add something' },
+  { name: 'Pay', note: 'One tap' },
+  { name: 'Pick up', note: 'At the counter' },
+]
+// The order is placed at the time the phone shows (9:41), today
+const placedNow = () => {
+  const d = new Date()
+  d.setHours(9, 41, 0, 0)
+  return d
+}
+const ORDER_NUMBER = '0247'
+const euro = (v: number) => v.toFixed(2)
+
+// A choice in the app: the whole row is the button
+function OrderRow({ item, picked, onPick }: { item: OrderItem; picked: boolean; onPick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onPick}
+      aria-pressed={picked}
+      className={`flex w-full items-center gap-[3.5cqw] border-b border-[var(--ink)]/10 py-[2.6cqw] text-left transition-colors duration-300 ${picked ? 'text-[var(--ink)]' : 'text-[var(--ink)]/70 hover:text-[var(--ink)]'}`}
+    >
+      {item.photo && <Photo k={item.photo} className="size-[13cqw] shrink-0 rounded-[2cqw]" />}
+      <span className="min-w-0 flex-1">
+        <span className="block text-[3.8cqw] font-semibold leading-tight">{item.name}</span>
+        <span className="fold-mono mt-[0.5cqw] block text-[2.6cqw] opacity-55">{item.note}</span>
+      </span>
+      <span className="fold-mono text-[3.2cqw] tabular-nums">{euro(item.price)}</span>
+      {/* picked: the row's corner turns, in signal */}
+      <span
+        aria-hidden
+        className="size-[4cqw] shrink-0 transition-[background-color,clip-path] duration-300"
+        style={{
+          background: picked ? 'var(--signal)' : 'rgba(21,19,17,0.12)',
+          clipPath: picked ? 'polygon(0 0, 100% 0, 100% 100%)' : 'polygon(0 0, 100% 0, 100% 100%, 0 100%)',
+        }}
+      />
+    </button>
+  )
+}
+
+// The app's main button: ink, with its corner folded back to signal
+function OrderButton({ children, onClick, disabled = false, quiet = false }: { children: ReactNode; onClick: () => void; disabled?: boolean; quiet?: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`fold-mono relative mt-auto flex w-full items-center justify-between overflow-hidden rounded-[2.4cqw] px-[5cqw] py-[4.2cqw] text-[3.2cqw] transition-[opacity,background-color] duration-300 disabled:opacity-30 ${quiet ? 'border border-[var(--ink)]/25 text-[var(--ink)] hover:bg-[var(--ink)]/5' : 'bg-[var(--ink)] text-[var(--paper)] hover:bg-[#2a2622]'}`}
+    >
+      {children}
+      {!quiet && (
+        <span aria-hidden className="absolute right-0 top-0 size-[6cqw] bg-[var(--signal)]" style={{ clipPath: 'polygon(0 0, 100% 0, 100% 100%)' }} />
+      )}
+    </button>
+  )
+}
+
+// What's printed when the order is placed, as FOLD's own receipt sets it
+function OrderReceipt({ items, total, at }: { items: OrderItem[]; total: number; at: Date }) {
+  const date = `${String(at.getDate()).padStart(2, '0')}.${String(at.getMonth() + 1).padStart(2, '0')}.${at.getFullYear()}`
+  const time = `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`
+  const rule = <p aria-hidden className="my-[7%] border-t border-dashed border-[var(--ink)]/35" />
+  return (
+    <div
+      className="fold-mono relative bg-[#fbf8f2] px-[9%] pb-[16%] pt-[10%] text-[10px] leading-[1.6] text-[var(--ink)] shadow-[0_30px_50px_-30px_rgba(21,19,17,0.5)] @4xl:text-[11px]"
+      style={{ clipPath: 'polygon(0 0, 100% 0, 100% 97.5%, 95% 99.5%, 90% 97.5%, 85% 99.5%, 80% 97.5%, 75% 99.5%, 70% 97.5%, 65% 99.5%, 60% 97.5%, 55% 99.5%, 50% 97.5%, 45% 99.5%, 40% 97.5%, 35% 99.5%, 30% 97.5%, 25% 99.5%, 20% 97.5%, 15% 99.5%, 10% 97.5%, 5% 99.5%, 0 97.5%)' }}
+    >
+      <Mark className="w-[46%] text-[var(--ink)]" />
+      <p className="mt-[8%] opacity-80">
+        Coffee / Food /
+        <br />
+        People / Neighbourhood
+      </p>
+      {rule}
+      <div className="flex justify-between">
+        <p className="font-medium">Order {ORDER_NUMBER}</p>
+        <p className="text-right opacity-80">
+          {date}
+          <br />
+          {time}
+        </p>
+      </div>
+      <p className="opacity-80">Take away</p>
+      {rule}
+      {items.map((it) => (
+        <p key={it.id} className="flex justify-between gap-3">
+          <span>1&nbsp;&nbsp;{it.name}</span>
+          <span className="tabular-nums">{euro(it.price)}</span>
+        </p>
+      ))}
+      {rule}
+      <p className="flex justify-between font-medium">
+        <span>Total</span>
+        <span className="tabular-nums">{euro(total)}</span>
+      </p>
+      {rule}
+      <p>
+        Good things ahead.
+        <br />
+        Thank you!
+      </p>
+      <p className="mt-[8%] opacity-70">
+        Athens
+        <br />
+        Every
+        <br />
+        Day.
+      </p>
+      {/* signed off with the fold: its corner turned back to signal */}
+      <Corner className="bottom-[3%] right-0 rotate-[-90deg]" size="18%" />
+    </div>
+  )
+}
+
+// 07 — Order ahead. The FOLD app does one thing: gets the order ready before you arrive. It works
+// here: four steps inside the phone, each opening like a corner of paper unfolding (never
+// sliding), and the receipt printing beside the phone once the order is placed. Prices are
+// the printed menu's; the photographs, colours and mark are the identity's own.
+function Order() {
+  const reduced = useReducedMotion()
+  const [step, setStep] = useState(0)
+  const [coffee, setCoffee] = useState<OrderItem | null>(null)
+  // undefined: not chosen yet; null: "no thanks"
+  const [pastry, setPastry] = useState<OrderItem | null | undefined>(undefined)
+  const [placedAt, setPlacedAt] = useState<Date | null>(null)
+  const items = [coffee, pastry].filter(Boolean) as OrderItem[]
+  const total = items.reduce((s, it) => s + it.price, 0)
+  const readyAt = placedAt ? new Date(placedAt.getTime() + 6 * 60 * 1000) : null
+  const clock = (d: Date) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+
+  const restart = () => {
+    setStep(0)
+    setCoffee(null)
+    setPastry(undefined)
+    setPlacedAt(null)
+  }
+  // each screen opens from its top-right corner, like paper unfolding
+  const unfold = reduced
+    ? { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 } }
+    : {
+        initial: { clipPath: 'polygon(100% 0%, 100% 0%, 100% 0%, 100% 0%)' },
+        animate: { clipPath: 'polygon(-60% 0%, 100% 0%, 100% 160%, -60% 160%)', transition: { duration: 0.75, ease: [0.65, 0, 0.2, 1] as const } },
+        exit: { opacity: 0, transition: { duration: 0.15 } },
+      }
+
+  return (
+    <section className="relative overflow-hidden bg-[var(--kraft-light)] px-[5cqw] pb-[12cqh] pt-[10cqh]">
+      <div className="grid items-center gap-y-[7cqh] @2xl:grid-cols-12 @2xl:gap-x-[3cqw]">
+        {/* the story, and where the order is */}
+        <div className="@2xl:col-span-4">
+          <Head n="07" title="Order ahead" />
+          <In kind="lines" className="fold-display mt-5" style={{ fontSize: 'max(34px, 6.4cqw)' }}>
+            <span>
+              <span>Order</span>
+            </span>
+            <span>
+              <span className="text-[var(--signal)]">ahead.</span>
+            </span>
+          </In>
+          <In kind="rise" as="p" className="mt-[3cqh] max-w-[38ch] text-[13px] leading-relaxed text-[var(--ink)]/75">
+            The app does one thing: gets your order ready before you arrive. Four taps, prices in mono like the receipt, and
+            every screen opens like a fold — it never slides in.
+          </In>
+          <ol className="fold-mono mt-[5cqh] space-y-[1.4cqh] text-[10px] @4xl:text-[11px]">
+            {ORDER_STEPS.map((s, i) => {
+              const on = i === step
+              return (
+                <li
+                  key={s.name}
+                  aria-current={on ? 'step' : undefined}
+                  className="flex items-baseline whitespace-nowrap transition-[color,opacity,translate] duration-[400ms] ease-out motion-reduce:transition-none"
+                  style={{ color: on ? 'var(--signal)' : 'var(--ink)', opacity: on ? 1 : i < step ? 0.55 : 0.28, translate: on ? '6px 0' : '0 0' }}
+                >
+                  <span className="tabular-nums">{String(i + 1).padStart(2, '0')}</span>
+                  <span aria-hidden className="mx-3 h-px self-center bg-current transition-[width] duration-[400ms]" style={{ width: on ? 28 : 12 }} />
+                  <span>
+                    {s.name}
+                    <span className="ml-3 opacity-60">{s.note}</span>
+                  </span>
+                </li>
+              )
+            })}
+          </ol>
+          <p className="fold-mono mt-[5cqh] text-[10px] text-[var(--ink)]/50">Try it — tap inside the phone.</p>
+        </div>
+
+        {/* the phone: the app itself */}
+        <div className="flex justify-center @2xl:col-span-4">
+          <In kind="rise" delay={0.1}>
+            <div className="[--ph:min(680px,175cqw)] @2xl:[--ph:min(760px,82cqh)]">
+              <PhoneFrame height="var(--ph)">
+                <div className="absolute inset-x-0 bottom-0 top-[12cqw] flex flex-col">
+                  {/* the app's own bar: the mark, and how far the order has come */}
+                  <div className="flex items-center justify-between px-[6cqw] pb-[3cqw] pt-[2cqw]">
+                    <Mark className="w-[17cqw] text-[var(--ink)]" />
+                    <div aria-label={`Step ${step + 1} of 4`} className="flex gap-[1.4cqw]">
+                      {ORDER_STEPS.map((s, i) => (
+                        <span
+                          key={s.name}
+                          className="h-[1cqw] w-[6cqw] rounded-full transition-colors duration-500"
+                          style={{ background: i <= step ? 'var(--signal)' : 'rgba(21,19,17,0.14)' }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="relative flex-1" aria-live="polite">
+                    <AnimatePresence mode="wait" initial={false}>
+                      <motion.div key={step} {...unfold} className="absolute inset-0 flex flex-col px-[6cqw] pb-[7cqw]">
+                        {step === 0 && (
+                          <>
+                            {/* the cup, on kraft, the fold entering from its corner */}
+                            <div className="relative -mx-[6cqw] h-[58cqw] shrink-0 overflow-hidden bg-[var(--kraft)]">
+                              <FoldPlanes className="right-0 top-0 h-[60%] w-[40%]" />
+                              <FoldPlanes corner="bl" className="bottom-0 left-0 h-[34%] w-[26%]" />
+                              <img
+                                src={photoSrc('heroCup')}
+                                alt={PHOTOS.heroCup.alt}
+                                className="absolute left-1/2 top-[6%] h-[96%] w-auto -translate-x-1/2"
+                                style={{ height: '96%', width: 'auto', objectFit: 'contain' }}
+                              />
+                              <span className="fold-mono absolute bottom-[6cqw] left-[6cqw] rounded-full bg-[var(--ink)] px-[3cqw] py-[1.4cqw] text-[2.8cqw] text-[var(--paper)]">
+                                {coffee ? coffee.name : 'Your coffee'}
+                              </span>
+                            </div>
+                            <p className="fold-display mt-[5cqw] text-[9cqw]">Coffee.</p>
+                            <div className="mt-[1cqw]">
+                              {COFFEES.map((c) => (
+                                <OrderRow key={c.id} item={c} picked={coffee?.id === c.id} onPick={() => setCoffee(c)} />
+                              ))}
+                            </div>
+                            <OrderButton disabled={!coffee} onClick={() => setStep(1)}>
+                              <span>Next — pastry</span>
+                              <span>→</span>
+                            </OrderButton>
+                          </>
+                        )}
+
+                        {step === 1 && (
+                          <>
+                            <p className="fold-display mt-[3cqw] text-[9cqw] leading-[0.95]">
+                              Something
+                              <br />
+                              <span className="text-[var(--signal)]">with it?</span>
+                            </p>
+                            <div className="mt-[3cqw]">
+                              {PASTRIES.map((p) => (
+                                <OrderRow key={p.id} item={p} picked={pastry?.id === p.id} onPick={() => setPastry(p)} />
+                              ))}
+                              <button
+                                type="button"
+                                onClick={() => setPastry(null)}
+                                aria-pressed={pastry === null}
+                                className={`fold-mono w-full py-[3.4cqw] text-left text-[3cqw] transition-colors ${pastry === null ? 'text-[var(--signal)]' : 'text-[var(--ink)]/55 hover:text-[var(--ink)]'}`}
+                              >
+                                No thanks, just the coffee
+                              </button>
+                            </div>
+                            <OrderButton disabled={pastry === undefined} onClick={() => setStep(2)}>
+                              <span>Review order</span>
+                              <span>→</span>
+                            </OrderButton>
+                          </>
+                        )}
+
+                        {step === 2 && (
+                          <>
+                            <p className="fold-display mt-[3cqw] text-[9cqw]">Your order.</p>
+                            <div className="fold-mono mt-[4cqw] text-[3.2cqw]">
+                              {items.map((it) => (
+                                <p key={it.id} className="flex justify-between border-b border-[var(--ink)]/10 py-[2.6cqw]">
+                                  <span>1&nbsp;&nbsp;{it.name}</span>
+                                  <span className="tabular-nums">{euro(it.price)}</span>
+                                </p>
+                              ))}
+                              <p className="flex justify-between py-[3cqw] font-medium">
+                                <span>Total</span>
+                                <span className="tabular-nums">€ {euro(total)}</span>
+                              </p>
+                            </div>
+                            {/* where to pick it up */}
+                            <div className="mt-[2cqw] flex items-center gap-[3.5cqw] rounded-[2.4cqw] bg-[var(--ink)]/[0.05] p-[3cqw]">
+                              <Photo k="storefront" className="aspect-[2/1] w-[30cqw] shrink-0 rounded-[1.6cqw]" />
+                              <div className="fold-mono text-[2.7cqw] leading-snug">
+                                <p>Pick up</p>
+                                <p className="opacity-60">FOLD — Athens</p>
+                                <p className="opacity-60">Ready in 6 min</p>
+                              </div>
+                            </div>
+                            <OrderButton
+                              onClick={() => {
+                                setPlacedAt(placedNow())
+                                setStep(3)
+                              }}
+                            >
+                              <span>Pay € {euro(total)}</span>
+                              <span>→</span>
+                            </OrderButton>
+                          </>
+                        )}
+
+                        {step === 3 && readyAt && (
+                          <>
+                            {/* the café, the fold turned back over it */}
+                            <div className="relative -mx-[6cqw] h-[44cqw] shrink-0 overflow-hidden">
+                              <Photo k="storefront" className="size-full" />
+                              <FoldPlanes className="right-0 top-0 h-[70%] w-[34%]" />
+                            </div>
+                            <p className="fold-mono mt-[5cqw] text-[2.8cqw] opacity-60">
+                              Order {ORDER_NUMBER} / Take away
+                            </p>
+                            <p className="fold-display mt-[2cqw] text-[11cqw] leading-[0.95]">
+                              Ready
+                              <br />
+                              at <span className="text-[var(--signal)]">{clock(readyAt)}.</span>
+                            </p>
+                            <p className="mt-[4cqw] text-[3.4cqw] leading-relaxed opacity-75">
+                              Show this at the counter. Your receipt is on its way.
+                            </p>
+                            <p className="fold-mono mt-[3cqw] text-[2.8cqw] opacity-60">Good things ahead.</p>
+                            <OrderButton quiet onClick={restart}>
+                              <span>New order</span>
+                              <span>↺</span>
+                            </OrderButton>
+                          </>
+                        )}
+                      </motion.div>
+                    </AnimatePresence>
+                  </div>
+                </div>
+              </PhoneFrame>
+            </div>
+          </In>
+        </div>
+
+        {/* the receipt: printed beside the phone once the order is placed */}
+        <div className="@2xl:col-span-4 @2xl:pl-[2cqw]">
+          <div className="mx-auto max-w-[300px] @2xl:mx-0 @2xl:max-w-[240px] @4xl:max-w-[270px]">
+            <div aria-hidden className="h-[3px] rounded-full bg-[var(--ink)]/80" />
+            <AnimatePresence mode="wait">
+              {step === 3 && placedAt ? (
+                <motion.div
+                  key="receipt"
+                  initial={reduced ? { opacity: 0 } : { clipPath: 'inset(0 0 100% 0)' }}
+                  animate={reduced ? { opacity: 1 } : { clipPath: 'inset(0 0 0% 0)', transition: { duration: 1.8, ease: [0.4, 0, 0.6, 1], delay: 0.35 } }}
+                  exit={{ opacity: 0, transition: { duration: 0.25 } }}
+                  className="-mt-px @2xl:rotate-[2deg]"
+                  style={{ transformOrigin: 'top center' }}
+                >
+                  <OrderReceipt items={items} total={total} at={placedAt} />
+                </motion.div>
+              ) : (
+                <motion.p key="slot" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fold-mono mt-3 text-[10px] text-[var(--ink)]/45">
+                  The receipt prints here.
+                </motion.p>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ---------------------------------------------------------------- 08 Motion principles
 
 function Motion() {
   const reveal = useInView<HTMLDivElement>(0.4)
   const settle = useInView<HTMLDivElement>(0.4)
   return (
     <section className="bg-[var(--ink)] px-[5cqw] pb-[12cqh] pt-[10cqh] text-[var(--paper)]">
-      <Head n="10" title="Motion principles" light />
+      <Head n="08" title="Motion principles" light />
       <h3 className="fold-display mt-5" style={{ fontSize: 'max(30px, 6.6cqw)' }}>
         Nothing bounces.
       </h3>
@@ -1004,12 +1488,12 @@ function Motion() {
   )
 }
 
-// ---------------------------------------------------------------- 11 Closing
+// ---------------------------------------------------------------- 09 Closing
 
 function Closing() {
   return (
     <section className="relative flex flex-col justify-between overflow-hidden bg-[var(--paper)] px-[5cqw] pb-[6cqh] pt-[10cqh]" style={{ minHeight: '100cqh' }}>
-      <Head n="11" title="Closing" />
+      <Head n="09" title="Closing" />
       <In kind="lines" className="fold-display my-[6cqh]" style={{ fontSize: 'max(52px, 15cqw)' }}>
         <span>
           <span>Good things</span>

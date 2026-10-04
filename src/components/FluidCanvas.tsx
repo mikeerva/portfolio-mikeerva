@@ -205,8 +205,9 @@ void main() {
     // they keep their rounded contour
     // they keep their rounded contour. Where a near lobe is already present, the mass behind
     // lends it some of its field, so it swells out of the mass's edge instead of sitting there
-    // as a separate disc; on its own, the mass behind never shows over the panel.
-    float near = ff + fb * 0.35 * smoothstep(0.15, 0.5, ff);
+    // as a separate disc; on its own, the mass behind never shows over the panel. What it lends
+    // is capped, so a large mass right behind the edge can't stretch the lobe into a flat slab.
+    float near = ff + min(fb * 0.35, 0.45) * smoothstep(0.15, 0.5, ff);
     float behind = 1.0 - smoothstep(0.98, 1.02, near);
     a *= 1.0 - inside * behind * uPanelA;
   }

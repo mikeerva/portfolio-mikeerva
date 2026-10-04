@@ -152,7 +152,9 @@ export function Projects({ category, project, onProject }: Props) {
   }
   const onMove = (e: ReactPointerEvent) => hover(explorable.current && project === null ? hit(e.clientX, e.clientY) : -1)
   const onClick = (e: ReactPointerEvent) => {
-    if (!explorable.current || project !== null) return
+    // Only the main button enters: the mouse's back/forward buttons (and right-click) are left to
+    // the browser, so back from here goes back instead of entering the project under the pointer
+    if (e.button !== 0 || !explorable.current || project !== null) return
     const g = hit(e.clientX, e.clientY)
     if (g >= 0) {
       hover(-1)
@@ -216,9 +218,13 @@ export function Projects({ category, project, onProject }: Props) {
             initial={{ opacity: 0, x: -8 }}
             animate={{ opacity: 1, x: 0, transition: { duration: 0.6, ease, delay: 2.4 } }}
             exit={{ opacity: 0, transition: { duration: 0.2 } }}
-            className="lift-shadow absolute left-5 top-24 z-20 text-phi-sm font-semibold lowercase text-cream transition-colors duration-300 hover:text-glow sm:left-8 sm:top-28"
+            className="lift-shadow group absolute left-5 top-24 z-20 flex items-baseline gap-[0.3em] text-phi-sm font-semibold lowercase text-cream transition-colors duration-500 hover:text-glow sm:left-8 sm:top-28"
           >
-            ← back
+            {/* the arrow holds still; the word grows a little and its letters open, as the site's labels do */}
+            <span aria-hidden>←</span>
+            <span className="origin-left tracking-[0em] transition-[letter-spacing,scale] duration-500 ease-out group-hover:scale-[1.06] group-hover:tracking-[0.06em]">
+              back
+            </span>
           </motion.button>
         )}
       </AnimatePresence>
