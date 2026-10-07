@@ -1,4 +1,4 @@
-import type { Ref, RefObject, UIEvent } from 'react'
+import { Suspense, type Ref, type RefObject, type UIEvent } from 'react'
 import type { Project } from '../config'
 import { caseStudies } from '../projects'
 import { ScrollerContext, useSmoothWheel } from '../projects/scroll'
@@ -32,7 +32,8 @@ export function ProjectView({ project, panelRef, worldRef, onScroll }: Props) {
         style={{ pointerEvents: 'none', containerType: 'size' }}
       >
         <ScrollerContext.Provider value={panelRef}>
-          {CaseStudy ? <CaseStudy /> : <Placeholder project={project} />}
+          {/* A case study arrives as its own chunk; until then the panel simply stays empty */}
+          <Suspense fallback={null}>{CaseStudy ? <CaseStudy /> : <Placeholder project={project} />}</Suspense>
         </ScrollerContext.Provider>
       </div>
     </>

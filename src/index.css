@@ -10,6 +10,8 @@
   --color-cream: #f6f1e4;
   /* Hover: cream lit lavender, as if by the mass's highlights */
   --color-glow: #e8e6ff;
+  /* Coming soon: warm amber, the mass's complement, so it reads over the purple as well as the dark */
+  --color-soon: #ffc46b;
 
   /* Type scale in the golden ratio: each step 1.618 × the one below, from a 16px base */
   --text-phi-xs: 0.618rem;

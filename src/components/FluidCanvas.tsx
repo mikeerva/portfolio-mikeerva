@@ -17,6 +17,7 @@ import {
   panelReveal,
 } from '../lib/projects'
 import { object, type ObjectFrame } from '../lib/scene'
+import { ABOUT_CLOSE_S, ABOUT_OPEN_AT_S, ABOUT_OPEN_S, ABOUT_SLOTS, ABOUT_SWEEP_S, aboutLayout } from '../lib/about'
 
 // Hero layout: [x, y] as fractions of the viewport, radius as a fraction of its longer side
 const BLOBS: [number, number, number][] = [
@@ -235,8 +236,8 @@ function compile(gl: WebGLRenderingContext, type: number, src: string) {
   return s
 }
 
-export type FluidMode = 'home' | 'work'
-const MODES: FluidMode[] = ['home', 'work']
+export type FluidMode = 'home' | 'work' | 'about'
+const MODES: FluidMode[] = ['home', 'work', 'about']
 
 export function FluidCanvas({ mode }: { mode: FluidMode }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -295,7 +296,7 @@ export function FluidCanvas({ mode }: { mode: FluidMode }) {
     const data = new Float32Array(COUNT * 4)
     // Per-blob weight of each mode; different rates make them arrive one after another
     const weights = MODES.map((md) => new Float32Array(COUNT).fill(modeRef.current === md ? 1 : 0))
-    const eased = [0, 0]
+    const eased = [0, 0, 0]
     // Each blob follows the object's state with its own lag, so turning feels soft rather than rigid
     const lag = new Float32Array(COUNT).fill(object.progress)
     let turn = object.progress
@@ -345,6 +346,12 @@ export function FluidCanvas({ mode }: { mode: FluidMode }) {
     // For each Work-only blob, the shared volume it sinks into in the Hero
     const hostOf = new Int8Array(COUNT).fill(-1)
     let linkPull = 0
+    // About: time since it was entered and since it was left (s), and how far the portrait has
+    // risen open (0..1, linear)
+    let wasAbout = modeRef.current === 'about'
+    let aboutClock = wasAbout ? 10 : 0
+    let leaveClock = 10
+    let portraitOpen = wasAbout ? 1 : 0
     const onPointer = (e: PointerEvent) => {
       pointer.x = e.clientX
       pointer.y = e.clientY
@@ -409,7 +416,19 @@ export function FluidCanvas({ mode }: { mode: FluidMode }) {
 
       const k = w / Math.max(canvas.clientWidth, 1)
       const layout = objectLayout(canvas.clientWidth, canvas.clientHeight)
-      const zoomTarget = current === 'home' ? HERO_ZOOM : object.open ? 1 : object.hover ? 1.05 : 1
+      const zoomTarget = current !== 'work' ? HERO_ZOOM : object.open ? 1 : object.hover ? 1.05 : 1
+      const inAbout = current === 'about'
+      if (inAbout && !wasAbout) aboutClock = 0
+      if (!inAbout && wasAbout) leaveClock = 0
+      wasAbout = inAbout
+      aboutClock += dt
+      leaveClock += dt
+      portraitOpen = Math.min(
+        Math.max(portraitOpen + (inAbout && aboutClock > ABOUT_OPEN_AT_S ? dt / ABOUT_OPEN_S : -dt / ABOUT_CLOSE_S), 0),
+        1,
+      )
+      const aboutReveal = portraitOpen * portraitOpen * (3 - 2 * portraitOpen)
+      const frame0 = aboutLayout(canvas.clientWidth, canvas.clientHeight).frame
       zoom += (zoomTarget - zoom) * 0.035
       tilt += (object.tilt - tilt) * 0.08
       // A new resting orientation set without a turn: taken up at once rather than turned to
@@ -676,16 +695,25 @@ export function FluidCanvas({ mode }: { mode: FluidMode }) {
         screen[i * 3] = wx
         screen[i * 3 + 1] = wy
         screen[i * 3 + 2] = wr
+
+        // About: its place around the portrait's frame, with the same slow life as an opened
+        // project's lobes
+        const [su, sv, sr, sd] = ABOUT_SLOTS[i]
+        const ax = (frame0.left + (su + 0.012 * Math.sin(t * (0.21 + 0.013 * i) + i * 1.7)) * frame0.width) * k
+        const ay = h - (frame0.top + (sv + 0.015 * Math.cos(t * (0.17 + 0.011 * i) + i * 2.3)) * frame0.height) * k
+        const ar = sr * frame0.height * k * (1 + 0.05 * Math.sin(t * (0.23 + 0.01 * i) + i) + 0.14 * blobPressure(i, t))
+
         if (i >= BLOBS.length) {
           // Work-only: it belongs to the shared volume it sits in within the Work mass (chosen
           // while fully in Work, kept through any transition), and in the Hero it sits at that
           // volume's centre as drawn this frame. So leaving Work it travels inside its volume and
           // shrinks into it (and grows out of it the other way), never lingering or flying off
-          // as a droplet.
-          if (hostOf[i] < 0 || weights[1][i] > 0.999) {
+          // as a droplet. About's own blobs do the same with their place there.
+          const inA = weights[2][i] > weights[1][i]
+          if (hostOf[i] < 0 || weights[1][i] > 0.999 || weights[2][i] > 0.999) {
             let best = Infinity
             for (let j = 0; j < BLOBS.length; j++) {
-              const s = Math.hypot(wx - data[j * 4], wy - data[j * 4 + 1]) - data[j * 4 + 2]
+              const s = Math.hypot((inA ? ax : wx) - data[j * 4], (inA ? ay : wy) - data[j * 4 + 1]) - data[j * 4 + 2]
               if (s < best) {
                 best = s
                 hostOf[i] = j
@@ -696,29 +724,42 @@ export function FluidCanvas({ mode }: { mode: FluidMode }) {
           hy = data[hostOf[i] * 4 + 1]
         }
 
+        // The About sweep: entering, a volume waits until the sweep has reached where it is in the
+        // Hero, so the left of the screen gathers first; leaving, the portrait closes first and
+        // the volumes let go from the right
+        const heroX = (BLOBS[i] ?? BLOBS[Math.max(hostOf[i], 0)])[0]
+        const hold = inAbout
+          ? aboutClock < heroX * ABOUT_SWEEP_S
+          : weights[2][i] > 0.001 && leaveClock < ABOUT_CLOSE_S * 0.6 + (1 - heroX) * ABOUT_SWEEP_S * 0.6
         const rate = 0.018 + (i % 5) * 0.005
         let sum = 0
         MODES.forEach((md, j) => {
-          const wt = (weights[j][i] += ((current === md ? 1 : 0) - weights[j][i]) * rate)
+          const wt = hold ? weights[j][i] : (weights[j][i] += ((current === md ? 1 : 0) - weights[j][i]) * rate)
           eased[j] = wt * wt * (3 - 2 * wt)
           sum += eased[j]
         })
         const eh = eased[0] / sum
         const ew = eased[1] / sum
-        workShare += ew / COUNT
-        data[i * 4] = hx * eh + wx * ew
-        data[i * 4 + 1] = hy * eh + wy * ew
-        data[i * 4 + 2] = hr * eh + wr * ew
-        data[i * 4 + 3] = depth * ew
+        const ea = eased[2] / sum
+        // Away from the Hero: in Work, in About, or between the two
+        const away = ew + ea
+        const fx = away > 1e-6 ? (wx * ew + ax * ea) / away : wx
+        const fy = away > 1e-6 ? (wy * ew + ay * ea) / away : wy
+        const fDepth = depth * ew + sd * ea
+        workShare += away / COUNT
+        data[i * 4] = hx * eh + fx * away
+        data[i * 4 + 1] = hy * eh + fy * away
+        data[i * 4 + 2] = hr * eh + wr * ew + ar * ea
+        data[i * 4 + 3] = fDepth
         if (i >= BLOBS.length) {
           // Work-only blobs reach their volume's centre (and depth) early, while still large and
           // merged with it, and only then shrink away there, where they leave no mark (small
           // anywhere else, they show as a bead or a pinpoint dimple)
-          const stay = ew * ew * ew
+          const stay = away * away * away
           const hostDepth = data[hostOf[i] * 4 + 3]
-          data[i * 4] = hx + (wx - hx) * stay
-          data[i * 4 + 1] = hy + (wy - hy) * stay
-          data[i * 4 + 3] = hostDepth + (depth * ew - hostDepth) * stay
+          data[i * 4] = hx + (fx - hx) * stay
+          data[i * 4 + 1] = hy + (fy - hy) * stay
+          data[i * 4 + 3] = hostDepth + (fDepth - hostDepth) * stay
         }
       }
 
@@ -767,21 +808,30 @@ export function FluidCanvas({ mode }: { mode: FluidMode }) {
       sinceWork = current === 'work' && object.open ? 0 : sinceWork + dt
       const open = Math.min(reveal, 1 - ramp(0, PANEL_LEAVE_S, sinceWork))
       // The panel as revealed so far: it opens from its centre line outward along the long axis
-      const pr = panelRect(canvas.clientWidth, canvas.clientHeight)
-      const clipX = pr.portrait ? 0 : (pr.width * (1 - open)) / 2
-      const clipY = pr.portrait ? (pr.height * (1 - open)) / 2 : 0
-      gl.uniform4f(
-        uPanel,
-        (pr.left + clipX) * k,
-        h - (pr.top + pr.height - clipY) * k,
-        (pr.left + pr.width - clipX) * k,
-        h - (pr.top + clipY) * k,
-      )
+      if (aboutReveal > 0) {
+        // About's portrait takes the panel's place in the material: the same cut-out, rising
+        // open from the frame's bottom edge
+        const top = frame0.top + frame0.height * (1 - aboutReveal)
+        gl.uniform4f(uPanel, frame0.left * k, h - (frame0.top + frame0.height) * k, (frame0.left + frame0.width) * k, h - top * k)
+        gl.uniform1f(uPanelA, ramp(0, 0.08, aboutReveal))
+      } else {
+        const pr = panelRect(canvas.clientWidth, canvas.clientHeight)
+        const clipX = pr.portrait ? 0 : (pr.width * (1 - open)) / 2
+        const clipY = pr.portrait ? (pr.height * (1 - open)) / 2 : 0
+        gl.uniform4f(
+          uPanel,
+          (pr.left + clipX) * k,
+          h - (pr.top + pr.height - clipY) * k,
+          (pr.left + pr.width - clipX) * k,
+          h - (pr.top + clipY) * k,
+        )
+        // The last sliver of a closing cut-out fades rather than lingering as a hairline
+        gl.uniform1f(uPanelA, reveal * (sinceWork > 0 ? ramp(0, 0.08, open) : 1))
+      }
+      object.onAboutFrame?.(aboutReveal)
       gl.uniform1f(uPanelR, PANEL_RADIUS * k)
       gl.uniform1f(uTime, t)
       gl.uniform1f(uFrag, ramp(0.5, 1, split) * (1 - ramp(0.05, 0.4, enter)) * workShare)
-      // The last sliver of a closing cut-out fades rather than lingering as a hairline
-      gl.uniform1f(uPanelA, reveal * (sinceWork > 0 ? ramp(0, 0.08, open) : 1))
       gl.uniform4fv(uBlobs, data)
       gl.drawArrays(gl.TRIANGLES, 0, 3)
       raf = requestAnimationFrame(frame)

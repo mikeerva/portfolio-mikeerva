@@ -1,7 +1,7 @@
-import { Children, useEffect, useState } from 'react'
+import { Children, useState } from 'react'
 import './product-studies.css'
 
-type Product = 'tripmate' | 'medicare' | 'shoply' | 'fittrack'
+type Product = 'tripmate' | 'medicare' | 'shoply'
 const content = {
   tripmate: {
     title: 'A trip has two coordinates: where, and when.', audience: 'The independent planner travelling with a partner or a small group.', task: 'Turn scattered saved places into a feasible day, then carry the plan offline.',
@@ -36,17 +36,6 @@ const content = {
     responsive: 'Desktop gives imagery room beside product information. Mobile opens filters in a compact disclosure, keeps variant targets large, and places the purchase controls directly after availability. Checkout becomes one labelled column.',
     limits: 'Prices, inventory and delivery are sample data. No payment information is collected and no order is sent. The next validation would compare quick add against product-detail selection for items with variants.',
   },
-  fittrack: {
-    title: 'The important screen is the one used between sets.', audience: 'A consistent recreational lifter logging training while tired and using one hand.', task: 'Record reps and load quickly, rest, finish the session and interpret progression.',
-    hypothesis: 'Keeping the current exercise, last set and one main action visible should reduce navigation during training.',
-    branches: [['Today', 'Workout · exercise · active set'], ['Log', 'Reps · load · rest · completion'], ['Progress', 'Volume · frequency · records'], ['Plan', 'Goals · preferences · history']],
-    flow: ['Today', 'Workout detail', 'Exercise', 'Log set', 'Rest', 'Next set', 'Session summary', 'Updated progress'],
-    wires: [['Early / spreadsheet log', 'Exercise list', 'Set | reps | load', 'Small inputs', 'More menus', 'Save row'], ['Iteration / one active set', 'Exercise 1 of 2', 'Previous set', 'Reps + load', 'Large log action', 'Rest state'], ['Final / meaningful summary', 'Session completed', 'Sets + training volume', 'Record comparison', 'Weekly consistency', 'See progression']],
-    decision: 'The table was efficient to scan but difficult to operate during training. The active-set layout removes competing actions; the summary compares the same exercise over time rather than a decorative wellness score.',
-    system: ['IBM Plex Mono / active training', 'Inter / explanations and summaries', 'Orange = current set / yellow = rest', '56px primary action', 'Numeric inputs with previous values', 'Charts labelled with kg, sets and sessions'],
-    responsive: 'Mobile prioritises reps, load and the log button in one vertical sequence. Desktop and tablet place the session beside the training history. The logging model stays identical so changing devices does not change the workflow.',
-    limits: 'Training history is illustrative and the prototype is not coaching or a health assessment. Volume is calculated as reps × load. The next validation would test accidental taps and data entry while users are in a training context.',
-  },
 }
 
 export function ProductStudy({ product }: { product: Product }) {
@@ -60,7 +49,7 @@ export function ProductStudy({ product }: { product: Product }) {
     </section>
     <section className="study-architecture"><p className="study-kicker">Product logic / information architecture</p><div className="study-tree">{c.branches.map(([name, children]) => <div key={name}><h3>{name}</h3><p>{children}</p></div>)}</div><ol className="study-flow">{c.flow.map((step, i) => <li key={step}><span>{String(i + 1).padStart(2, '0')}</span>{step}</li>)}</ol></section>
     <section className="study-exploration"><p className="study-kicker">Selected structural explorations</p><div className="study-wires">{c.wires.map(([title, ...parts], index) => <figure key={title} className={`study-wire wire-${index}`}><figcaption>{title}</figcaption><div className="wire-surface"><div className="wire-nav">{product.toUpperCase()} <span>•••</span></div>{parts.map((part, i) => <div key={part} className={`wire-part wire-part-${i}`}>{part}</div>)}</div></figure>)}</div><p className="study-decision"><b>Why it changed</b>{c.decision}</p></section>
-    <section className="study-interaction" id={`${product}-prototype`}><p className="study-kicker">Try the primary flow / interactive concept</p>{product === 'tripmate' ? <TravelDemo /> : product === 'medicare' ? <CareDemo /> : product === 'shoply' ? <CommerceDemo /> : <TrainingDemo />}</section>
+    <section className="study-interaction" id={`${product}-prototype`}><p className="study-kicker">Try the primary flow / interactive concept</p>{product === 'tripmate' ? <TravelDemo /> : product === 'medicare' ? <CareDemo /> : <CommerceDemo />}</section>
     <section className="study-system"><p className="study-kicker">A system shaped by the task</p><div className="study-system-grid">{c.system.map((item) => <div key={item}>{item}</div>)}</div><div className="study-specimen"><span>Aa / 0123456789</span><button type="button">Primary action</button><label>Input label<input placeholder="Visible label, clear value" /></label><button disabled>Unavailable</button></div><p>Keyboard focus stays visible. Status changes are announced. Input errors describe a correction. Reduced motion keeps state changes immediate.</p></section>
     <section className="study-responsive"><p className="study-kicker">Responsive decision</p><h2>The context changes the hierarchy.</h2><p>{c.responsive}</p><div className="study-device-model"><div><b>Planning / larger screen</b><span>Overview</span><span>Detail + next action</span></div><div><b>On the move / phone</b><span>Current task</span><span>One clear next action</span></div></div></section>
     <section className="study-review"><p className="study-kicker">Reflection / next validation</p><p>{c.limits}</p></section>
@@ -70,7 +59,6 @@ export function ProductStudy({ product }: { product: Product }) {
     tripmate: [0, 1, 3, 2, 5, 4, 6],
     medicare: [0, 1, 2, 4, 3, 5, 6],
     shoply: [0, 3, 1, 2, 5, 4, 6],
-    fittrack: [0, 3, 2, 1, 4, 5, 6],
   }
   return <div className={`product-study study-${product}`}>{order[product].map((index) => chapters[index])}</div>
 }
@@ -162,26 +150,5 @@ function CommerceDemo() {
     {stage === 'Review' && <><h3>Review your order</h3><p>{address}, {city}, {postal}</p>{cart.map((p) => <p key={`${p.name}-${p.variant}`}>{p.quantity} × {p.name} / {p.variant}</p>)}<p>Items €{total} · Shipping €{shipping}</p><h4>Total €{total + shipping}</h4><button onClick={() => setStage('Confirmed')}>Place demo order</button><button onClick={() => setStage('Checkout')}>Edit delivery</button></>}
     {stage === 'Confirmed' && <><h3>Order SL-204 confirmed</h3><p>Sample confirmation / nothing has been purchased.</p><ol className="commerce-tracking"><li>Confirmed</li><li>Preparing / next</li><li>Dispatched / pending</li><li>Delivered / pending</li></ol><button onClick={() => { setCart([]); setStage('Catalog') }}>Return to the edit</button></>}
     <p className="demo-status" role="status">{message}</p>
-  </div>
-}
-
-function TrainingDemo() {
-  const [phase, setPhase] = useState('Setup')
-  const [goal, setGoal] = useState('Build consistency')
-  const [exercise, setExercise] = useState(0)
-  const [reps, setReps] = useState(10)
-  const [load, setLoad] = useState(18)
-  const [logs, setLogs] = useState<{ exercise: string; reps: number; load: number }[]>([])
-  const [rest, setRest] = useState(60)
-  const exercises = ['Goblet squat', 'Dumbbell row']
-  const exerciseSets = logs.filter((l) => l.exercise === exercises[exercise]).length
-  const volume = logs.reduce((s, l) => s + l.reps * l.load, 0)
-  useEffect(() => { if (phase !== 'Rest' || rest <= 0) return; const timer = setTimeout(() => setRest(rest - 1), 1000); return () => clearTimeout(timer) }, [phase, rest])
-  const next = () => { if (exerciseSets >= 2) { if (exercise === 1) setPhase('Summary'); else { setExercise(1); setPhase('Active') } } else setPhase('Active') }
-  return <div className="training-demo demo-surface"><header><b>FITTRACK / TRAINING LOG</b><span>{phase}</span></header>
-    {phase === 'Setup' && <form className="demo-form" onSubmit={(e) => { e.preventDefault(); setPhase('Today') }}><h3>Your training focus</h3><label>Goal<select value={goal} onChange={(e) => setGoal(e.target.value)}><option>Build consistency</option><option>Increase strength</option></select></label><label>Weekly sessions<select><option>3 sessions</option><option>2 sessions</option></select></label><p>A short preference step creates a starting plan. Targets remain editable.</p><button>Set up my week</button></form>}
-    {phase === 'Today' && <><h3>Today / Full body A</h3><p>{goal} · 2 exercises · 2 sets each</p><ol><li>Goblet squat / 10 reps × 18 kg</li><li>Dumbbell row / 10 reps × 18 kg</li></ol><details><summary>Exercise details</summary><p>The demo focuses on logging. Exercise instructions would be reviewed by qualified contributors in a real product.</p></details><button className="training-main" onClick={() => setPhase('Active')}>Start session</button></>}
-    {(phase === 'Active' || phase === 'Rest') && <><div className="training-current"><p>Exercise {exercise + 1} / 2 · Set {Math.min(2, exerciseSets + 1)} / 2</p><h3>{exercises[exercise]}</h3><p>Previous: 10 reps × 18 kg / sample history</p></div>{phase === 'Active' ? <form onSubmit={(e) => { e.preventDefault(); setLogs([...logs, { exercise: exercises[exercise], reps, load }]); setRest(60); setPhase('Rest') }}><div className="training-inputs"><label>Repetitions<input required type="number" min="1" max="100" value={reps} onChange={(e) => setReps(Number(e.target.value))} /></label><label>Load / kg<input required type="number" min="0" max="300" step="0.5" value={load} onChange={(e) => setLoad(Number(e.target.value))} /></label></div><button className="training-main">Log set / start rest</button></form> : <div className="training-rest" role="status"><span>Rest</span><strong>{Math.floor(rest / 60)}:{String(rest % 60).padStart(2, '0')}</strong><p>Set saved: {reps} reps × {load} kg</p><button className="training-main" onClick={next}>{exerciseSets < 2 ? 'Next set' : exercise === 0 ? 'Next exercise' : 'Finish session'} / skip rest</button></div>}<table><caption>Session log</caption><thead><tr><th>Exercise</th><th>Reps</th><th>kg</th></tr></thead><tbody>{logs.map((l, i) => <tr key={i}><td>{l.exercise}</td><td>{l.reps}</td><td>{l.load}</td></tr>)}</tbody></table></>}
-    {phase === 'Summary' && <><h3>Session completed</h3><div className="training-summary"><div><span>Sets</span><strong>{logs.length}</strong></div><div><span>Volume / kg</span><strong>{volume}</strong></div><div><span>This week</span><strong>3 / 3</strong></div></div><p role="status">Training log updated. Volume measures total reps × load, not effort or recovery.</p><figure className="training-chart"><figcaption>Session volume / kg · sample history + your session</figcaption>{[540, 620, 680, volume].map((v, i) => <div key={i}><span style={{ height: `${Math.max(4, v / Math.max(680, volume) * 120)}px` }} /><b>{v} kg</b><small>{i === 3 ? 'Today' : `Session ${i + 1}`}</small></div>)}</figure><p>Consistency: 3 sessions this week. Personal record comparison: {load > 18 ? 'new demo load record' : 'previous load matched or below'}.</p><button onClick={() => { setPhase('Today'); setExercise(0); setLogs([]) }}>Return to today</button></>}
   </div>
 }

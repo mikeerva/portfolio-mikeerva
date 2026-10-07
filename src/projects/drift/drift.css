@@ -1,0 +1,537 @@
+/* DRIFT: the particle system is the page. Near-black, warm ivory points, and an interface kept
+   small enough to stay out of its way. The stage holds still for the run's length; the run's
+   scroll is the choreography. */
+
+.drift {
+  --ink: #0a0a09;
+  --ivory: #f3efe4;
+  --dim: rgba(243, 239, 228, 0.5);
+  background: var(--ink);
+  color: var(--ivory);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+:where(.drift) :where(p, ol, li, h1, h2) {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.drift-run {
+  position: relative;
+  height: 420cqh;
+}
+.drift-stage {
+  --drift-p: 0;
+  position: sticky;
+  top: 0;
+  height: 100cqh;
+  overflow: hidden;
+  background: var(--ink);
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: pan-y;
+  cursor: crosshair;
+}
+.drift-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+/* A quiet vignette over the field: the edges recede, the centre holds the light */
+.drift-stage::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(120% 95% at 52% 46%, rgba(6, 6, 5, 0) 45%, rgba(6, 6, 5, 0.55) 100%);
+}
+
+/* Interface: four corners, all small */
+.drift-top,
+.drift-phases,
+.drift-hints,
+.drift-controls,
+.drift-progress {
+  position: absolute;
+  z-index: 1;
+}
+.drift-top {
+  top: max(4.5cqh, 22px);
+  left: 5cqw;
+  pointer-events: none;
+}
+.drift-mark {
+  font-family: Archivo, sans-serif;
+  font-weight: 800;
+  font-stretch: 112%;
+  font-size: 15px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.drift-meta,
+.drift-phases,
+.drift-hints p,
+.drift-controls span,
+.drift-foot div {
+  font: 500 10px/1.4 'IBM Plex Mono', ui-monospace, monospace;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.drift-meta {
+  margin-top: 6px;
+  color: var(--dim);
+}
+.drift-phases {
+  left: 5cqw;
+  bottom: max(5cqh, 24px);
+  display: flex;
+  gap: 18px;
+  pointer-events: none;
+  color: rgba(243, 239, 228, 0.32);
+}
+.drift-phases li {
+  display: flex;
+  gap: 7px;
+  transition: color 0.5s;
+}
+.drift-phases span {
+  opacity: 0.6;
+}
+.drift-stage[data-phase='0'] .drift-phases li[data-i='0'],
+.drift-stage[data-phase='1'] .drift-phases li[data-i='1'],
+.drift-stage[data-phase='2'] .drift-phases li[data-i='2'],
+.drift-stage[data-phase='3'] .drift-phases li[data-i='3'] {
+  color: var(--ivory);
+}
+.drift-progress {
+  left: 5cqw;
+  right: 5cqw;
+  bottom: max(5cqh, 24px);
+  height: 1px;
+  margin-bottom: -10px;
+  background: rgba(243, 239, 228, 0.12);
+  pointer-events: none;
+}
+.drift-progress::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(243, 239, 228, 0.7);
+  transform-origin: left;
+  transform: scaleX(var(--drift-p));
+}
+.drift-hints {
+  right: 5cqw;
+  bottom: max(5cqh, 24px);
+  pointer-events: none;
+  text-align: right;
+}
+.drift-hints p {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  white-space: nowrap;
+  color: var(--dim);
+  opacity: 0;
+  transform: translateY(4px);
+  transition:
+    opacity 0.6s,
+    transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.drift-stage[data-phase='0'] .drift-hints p[data-i='0'],
+.drift-stage[data-phase='1'] .drift-hints p[data-i='1'],
+.drift-stage[data-phase='2'] .drift-hints p[data-i='2'],
+.drift-stage[data-phase='3'] .drift-hints p[data-i='3'] {
+  opacity: 1;
+  transform: none;
+}
+
+/* Controls: three hairlines in a row at the foot, like an instrument's trims, clear of the word */
+.drift-controls {
+  right: 5cqw;
+  bottom: calc(max(5cqh, 24px) + 34px);
+  display: grid;
+  grid-auto-flow: column;
+  gap: 22px;
+  cursor: default;
+}
+.drift-controls label {
+  display: grid;
+  gap: 8px;
+  justify-items: end;
+}
+.drift-controls span {
+  color: var(--dim);
+}
+.drift-controls input {
+  width: 96px;
+  height: 18px;
+  margin: 0;
+  background: transparent;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+}
+.drift-controls input::-webkit-slider-runnable-track {
+  height: 1px;
+  background: rgba(243, 239, 228, 0.3);
+}
+.drift-controls input::-moz-range-track {
+  height: 1px;
+  background: rgba(243, 239, 228, 0.3);
+}
+.drift-controls input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 9px;
+  height: 9px;
+  margin-top: -4px;
+  border-radius: 50%;
+  background: var(--ivory);
+}
+.drift-controls input::-moz-range-thumb {
+  width: 9px;
+  height: 9px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--ivory);
+}
+.drift-controls input:focus-visible {
+  outline: 1px solid var(--ivory);
+  outline-offset: 4px;
+}
+
+/* RELEASE: the tension built toward breaking the word, a hairline that fills under the hint */
+.drift-energy {
+  position: absolute;
+  z-index: 1;
+  right: 5cqw;
+  bottom: calc(max(5cqh, 24px) + 18px);
+  width: 160px;
+  height: 1px;
+  background: rgba(243, 239, 228, 0.16);
+  opacity: 0;
+  transition: opacity 0.5s;
+  pointer-events: none;
+}
+.drift-energy::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--ivory);
+  transform-origin: right;
+  transform: scaleX(var(--drift-e, 0));
+}
+.drift-stage[data-phase='2'] .drift-energy {
+  opacity: 1;
+}
+
+/* The invitation to scroll: a word and a line that keeps falling, until the first scroll */
+.drift-scroll {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  bottom: calc(max(5cqh, 24px) + 26px);
+  translate: -50% 0;
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  font: 500 11px/1 'IBM Plex Mono', ui-monospace, monospace;
+  letter-spacing: 0.32em;
+  text-indent: 0.32em;
+  text-transform: uppercase;
+  color: var(--ivory);
+  pointer-events: none;
+  transition: opacity 0.6s;
+  animation: drift-scroll-in 1s 1.2s both;
+}
+.drift-scroll i {
+  position: relative;
+  width: 1px;
+  height: 46px;
+  overflow: hidden;
+  background: rgba(243, 239, 228, 0.18);
+}
+.drift-scroll i::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1px;
+  height: 100%;
+  background: var(--ivory);
+  animation: drift-scroll-fall 1.8s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+.drift-stage[data-scrolled] .drift-scroll {
+  opacity: 0;
+}
+@keyframes drift-scroll-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes drift-scroll-fall {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(100%);
+  }
+}
+
+/* CALM: the closing line, small, in the space the word left */
+.drift-calm {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  font-family: Archivo, sans-serif;
+  font-weight: 800;
+  font-stretch: 112%;
+  font-size: clamp(18px, 2.4cqw, 34px);
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 1.4s 0.3s;
+}
+.drift-stage[data-phase='3'] .drift-calm {
+  opacity: 0.9;
+}
+
+/* No WebGL: the identity, still */
+.drift-fallback {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-family: Archivo, sans-serif;
+  font-weight: 800;
+  font-stretch: 125%;
+  font-size: 18cqw;
+  text-transform: uppercase;
+  color: transparent;
+  -webkit-text-stroke: 1px rgba(243, 239, 228, 0.5);
+}
+.drift-stage.is-fallback {
+  cursor: default;
+}
+.drift-stage.is-fallback .drift-canvas {
+  display: none;
+}
+
+/* The story, after the experiment */
+.drift-story {
+  padding: 4cqh 5cqw 0;
+}
+.drift-sec {
+  padding: 14cqh 0 0;
+}
+.drift-kicker {
+  display: flex;
+  gap: 1.4em;
+  margin-bottom: 5cqh;
+  font: 500 11px/1.4 'IBM Plex Mono', monospace;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.drift-kicker span {
+  color: var(--ivory);
+}
+.drift-concept h2 {
+  font-family: Archivo, sans-serif;
+  font-weight: 800;
+  font-stretch: 112%;
+  font-size: clamp(38px, 7.4cqw, 120px);
+  line-height: 0.86;
+  letter-spacing: -0.04em;
+  text-transform: uppercase;
+}
+.drift-lede {
+  max-width: 44ch;
+  margin-top: 5cqh;
+  font-size: clamp(16px, 1.55cqw, 21px);
+  line-height: 1.5;
+  color: rgba(243, 239, 228, 0.78);
+}
+.drift-states {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 2.4cqw;
+}
+.drift-states li {
+  padding-top: 2cqh;
+  border-top: 1px solid rgba(243, 239, 228, 0.25);
+}
+.drift-states span {
+  font: 500 10px/1 'IBM Plex Mono', monospace;
+  letter-spacing: 0.14em;
+  color: var(--dim);
+}
+.drift-states h3 {
+  margin: 4cqh 0 1.6cqh;
+  font-family: Archivo, sans-serif;
+  font-weight: 800;
+  font-stretch: 112%;
+  font-size: clamp(22px, 2.6cqw, 40px);
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+}
+.drift-states p {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: rgba(243, 239, 228, 0.68);
+}
+.drift-model-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 6cqw;
+  align-items: start;
+}
+.drift-model-grid .drift-lede {
+  margin-top: 0;
+}
+.drift-forces {
+  margin: 0;
+}
+.drift-forces div {
+  display: grid;
+  grid-template-columns: minmax(110px, 0.35fr) 1fr;
+  gap: 2cqw;
+  padding: 1.6cqh 0;
+  border-top: 1px solid rgba(243, 239, 228, 0.18);
+}
+.drift-forces dt {
+  font: 500 10px/1.6 'IBM Plex Mono', monospace;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.drift-forces dd {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: rgba(243, 239, 228, 0.68);
+}
+.drift-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5cqh 2.4cqw;
+  margin: 0;
+}
+.drift-facts div {
+  padding-top: 1.6cqh;
+  border-top: 1px solid rgba(243, 239, 228, 0.25);
+}
+.drift-facts dt {
+  font-family: Archivo, sans-serif;
+  font-weight: 800;
+  font-stretch: 112%;
+  font-size: clamp(36px, 5cqw, 80px);
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+.drift-facts dd {
+  margin: 1.2cqh 0 0;
+  font: 500 10px/1.5 'IBM Plex Mono', monospace;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.drift-note {
+  max-width: 52ch;
+  margin-top: 6cqh;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: rgba(243, 239, 228, 0.6);
+}
+
+.drift-foot {
+  padding: 16cqh 5cqw 5cqh;
+  display: grid;
+  gap: 12cqh;
+}
+.drift-foot p {
+  max-width: 14ch;
+  font-family: Archivo, sans-serif;
+  font-weight: 800;
+  font-stretch: 112%;
+  font-size: clamp(34px, 6cqw, 96px);
+  line-height: 0.88;
+  letter-spacing: -0.04em;
+  text-transform: uppercase;
+}
+.drift-foot div {
+  display: flex;
+  justify-content: space-between;
+  gap: 2em;
+  padding-top: 2cqh;
+  border-top: 1px solid rgba(243, 239, 228, 0.2);
+  color: var(--dim);
+}
+
+@container (max-width: 679px) {
+  .drift-controls {
+    bottom: calc(max(5cqh, 24px) + 46px);
+    gap: 14px;
+  }
+  .drift-controls input {
+    width: 64px;
+  }
+  .drift-phases {
+    gap: 10px;
+  }
+  .drift-phases span {
+    display: none;
+  }
+  .drift-hints {
+    left: 5cqw;
+    bottom: calc(max(5cqh, 24px) + 22px);
+    text-align: left;
+  }
+  .drift-hints p {
+    left: 0;
+    right: auto;
+    white-space: normal;
+  }
+  .drift-foot div span:nth-child(3) {
+    display: none;
+  }
+  .drift-scroll {
+    bottom: auto;
+    top: 64%;
+  }
+  .drift-energy {
+    left: 5cqw;
+    right: auto;
+    width: 120px;
+    bottom: calc(max(5cqh, 24px) + 14px);
+  }
+  .drift-states,
+  .drift-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 5cqh 5cqw;
+  }
+  .drift-model-grid {
+    grid-template-columns: 1fr;
+  }
+  .drift-forces div {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drift-hints p,
+  .drift-calm {
+    transition: none;
+  }
+  .drift-scroll i::after {
+    animation: none;
+    transform: none;
+  }
+}

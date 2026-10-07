@@ -1,5 +1,6 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { useEffect, useState, type CSSProperties } from 'react'
+import { About } from './components/About'
 import { FluidCanvas } from './components/FluidCanvas'
 import { LoadingPage } from './components/LoadingPage'
 import { LogoMark } from './components/LogoMark'
@@ -7,17 +8,19 @@ import { Float } from './components/Float'
 import { Menu } from './components/Menu'
 import { SoundToggle } from './components/SoundToggle'
 import { Work } from './components/Work'
-import { config, type CategoryId } from './config'
+import { config, isLive, type CategoryId } from './config'
 import { prepareWorkEntry } from './lib/onboarding'
 
 // #work/<category> opens a category's projects; #work/<category>/<project id> enters a project
-type Route = { view: 'home' } | { view: 'work'; category: CategoryId | null; project: number | null }
+type Route = { view: 'home' } | { view: 'about' } | { view: 'work'; category: CategoryId | null; project: number | null }
 
 function readRoute(): Route {
   const [view, id, projectId] = window.location.hash.slice(1).split('/')
+  if (view === 'about') return { view: 'about' }
   if (view !== 'work') return { view: 'home' }
   const category = config.categories.find((c) => c.id === id)?.id ?? null
-  const index = category ? config.projects[category].findIndex((p) => p.id === projectId) : -1
+  // Only a finished case study can be entered, even from a typed or old link
+  const index = category ? config.projects[category].findIndex((p) => p.id === projectId && isLive(p)) : -1
   return { view: 'work', category, project: index >= 0 ? index : null }
 }
 
@@ -27,8 +30,8 @@ function useRoute() {
     let view = readRoute().view
     const onHash = () => {
       const next = readRoute()
-      // Entering Work from the Hero: settle the mass's orientation before any of it shows
-      if (view === 'home' && next.view === 'work' && !next.category) prepareWorkEntry()
+      // Entering Work from the Hero or About: settle the mass's orientation before any of it shows
+      if (view !== 'work' && next.view === 'work' && !next.category) prepareWorkEntry()
       view = next.view
       setRoute(next)
     }
@@ -148,7 +151,7 @@ export default function App() {
                 <span className={heroHover}>
                   <Float phase={1.3}>
                     <span className={heroLinkClip}>
-                      <motion.a href={`mailto:${config.email}`} className={`block ${heroLink}`} {...rise(0.78)}>
+                      <motion.a href="#about" className={`block ${heroLink}`} {...rise(0.78)}>
                         get in touch
                       </motion.a>
                     </span>
@@ -156,6 +159,8 @@ export default function App() {
                 </span>
               </motion.div>
             </motion.div>
+          ) : route.view === 'about' ? (
+            <About key="about" />
           ) : (
             <Work
               key="work"

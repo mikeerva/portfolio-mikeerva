@@ -1,6 +1,6 @@
 import { animate, AnimatePresence, motion, useMotionValue } from 'framer-motion'
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type RefObject } from 'react'
-import { config, type CategoryId } from '../config'
+import { config, isLive, type CategoryId } from '../config'
 import { FACETS, facetPath, objectLayout, perspective, place, STATE_COUNT, yawOf } from '../lib/objectStates'
 import { ONBOARD_FACET, onboardStart, onboarding as onboardingState } from '../lib/onboarding'
 import { object } from '../lib/scene'
@@ -476,6 +476,10 @@ export function Work({ selected, project, onSelect, onClose, onProject }: Props)
               </span>
             ))}
           </p>
+          {/* A category with no finished case study yet */}
+          {!config.projects[config.categories[shownCategory].id].some(isLive) && (
+            <p className="mt-[1.1em] whitespace-nowrap text-phi-xs font-medium uppercase tracking-[0.35em] text-soon">Coming soon</p>
+          )}
         </div>
       </div>
     )

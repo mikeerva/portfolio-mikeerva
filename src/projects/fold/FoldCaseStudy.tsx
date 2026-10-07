@@ -711,7 +711,12 @@ const SOCIAL_POSTS: SocialPost[] = [
     src: '/projects/fold/social/post-05.jpg',
     alt: 'Same Routine Different Angle — a FOLD coffee with latte art on a sunlit stone surface, paired with a croissant, fold planes in the corner',
   },
-  { id: '06', type: 'placeholder' },
+  {
+    id: '06',
+    type: 'image',
+    src: '/projects/fold/social/post-06.jpg',
+    alt: 'Good Things Inside. — an opened FOLD kraft takeaway box on a sunlit stone floor, its red inner flaps folded back around wrapped pastries',
+  },
   { id: '07', type: 'placeholder' },
   { id: '08', type: 'placeholder' },
   { id: '09', type: 'placeholder' },

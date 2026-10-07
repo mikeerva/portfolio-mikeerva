@@ -1,9 +1,10 @@
 import { AnimatePresence, motion, useIsPresent } from 'framer-motion'
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type UIEvent } from 'react'
-import { config, type CategoryId } from '../config'
+import { config, isLive, type CategoryId } from '../config'
 import { PANEL_LEAVE_S, PANEL_RADIUS, panelRect, panelReveal } from '../lib/projects'
 import { object } from '../lib/scene'
 import { ProjectView } from './ProjectView'
+import { preloadCaseStudy } from '../projects'
 
 const ease = [0.22, 1, 0.36, 1] as const
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -148,18 +149,34 @@ export function Projects({ category, project, onProject }: Props) {
 
   const hover = (g: number) => {
     object.hoverProject = g
-    if (g !== hovered) setHovered(g)
+    if (g !== hovered) {
+      setHovered(g)
+      // Its case study starts loading while the pointer is still deciding
+      if (g >= 0 && isLive(projects[g])) preloadCaseStudy(projects[g].id)
+    }
   }
   const onMove = (e: ReactPointerEvent) => hover(explorable.current && project === null ? hit(e.clientX, e.clientY) : -1)
+  // A project whose case study isn't finished stays where it is: its "coming soon" line answers
+  // the click by lighting up and opening its letters for a moment
+  const [nudged, setNudged] = useState(-1)
+  const nudgeTimer = useRef(0)
+  useEffect(() => () => clearTimeout(nudgeTimer.current), [])
+  const enter = (g: number) => {
+    if (!isLive(projects[g])) {
+      setNudged(g)
+      clearTimeout(nudgeTimer.current)
+      nudgeTimer.current = window.setTimeout(() => setNudged(-1), 1400)
+      return
+    }
+    hover(-1)
+    onProject(g)
+  }
   const onClick = (e: ReactPointerEvent) => {
     // Only the main button enters: the mouse's back/forward buttons (and right-click) are left to
     // the browser, so back from here goes back instead of entering the project under the pointer
     if (e.button !== 0 || !explorable.current || project !== null) return
     const g = hit(e.clientX, e.clientY)
-    if (g >= 0) {
-      hover(-1)
-      onProject(g)
-    }
+    if (g >= 0) enter(g)
   }
 
   return (
@@ -193,6 +210,17 @@ export function Projects({ category, project, onProject }: Props) {
                 {name}
               </p>
               <p className="mt-[0.6em] whitespace-nowrap text-phi-xs font-light text-white/50">{projects[g].discipline ?? categoryName}</p>
+              {!isLive(projects[g]) && (
+                <p
+                  className={`mt-[1.1em] whitespace-nowrap text-phi-xs font-light uppercase transition-[letter-spacing,color] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] ${nudged === g ? 'text-glow' : hovered === g ? 'text-white/70' : 'text-white/40'}`}
+                  style={{ letterSpacing: nudged === g ? '0.45em' : '0.35em' }}
+                >
+                  Case study —{' '}
+                  <span className={`font-medium transition-colors duration-700 ${nudged === g ? 'text-glow' : 'text-soon'}`}>
+                    coming soon
+                  </span>
+                </p>
+              )}
             </div>
           </div>
         ))}
@@ -200,8 +228,9 @@ export function Projects({ category, project, onProject }: Props) {
         <ul className="sr-only">
           {names.map((name, g) => (
             <li key={g}>
-              <button type="button" disabled={project !== null} onClick={() => onProject(g)}>
+              <button type="button" disabled={project !== null || !isLive(projects[g])} onClick={() => enter(g)}>
                 {name}, {categoryName}, project {g + 1} of {names.length}
+                {isLive(projects[g]) ? '' : ', case study coming soon'}
               </button>
             </li>
           ))}

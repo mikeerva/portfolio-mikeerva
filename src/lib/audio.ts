@@ -2,12 +2,12 @@
 // be wired into the Web Audio graph once, and React StrictMode mounts effects twice.
 
 export const track = {
-  src: '/audio/dark-fog.mp3',
-  title: 'Dark Fog',
-  artist: 'Kevin MacLeod',
-  url: 'https://incompetech.com',
-  license: 'CC BY 4.0',
-  licenseUrl: 'https://creativecommons.org/licenses/by/4.0/',
+  src: '/audio/subterranean-vibration.mp3',
+  title: 'Subterranean Vibration',
+  artist: '',
+  url: '',
+  license: '',
+  licenseUrl: '',
 }
 
 export interface Levels {

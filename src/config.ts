@@ -11,14 +11,16 @@ export interface Project {
   // (0.45–1.1), angle (radians, 0 = horizontal), bend (-0.6–0.6), thickness (0.24–0.38), how
   // much it swells at one point (0–0.6) and where (0–1), and its side lobes (0–3)
   shape?: { length?: number; angle?: number; bend?: number; thick?: number; lean?: number; peak?: number; lobes?: number }
+  // 'live' once its case study is finished and can be entered; anything else shows as coming soon
+  status?: 'live' | 'coming-soon'
 }
 
-const placeholder = (n: number, name: string): Project => ({ id: `project-${n}`, name })
+export const isLive = (project: Project | undefined) => project?.status === 'live'
 
 export const config = {
   name: 'Mike Androulakis',
   role: 'Creative Designer',
-  email: 'hello@yourdomain.com',
+  email: 'mixahlerva@gmail.com',
   // Fluid background colour. Brand metallic blue alternative: '#2f6f8f'
   blobColor: '#5653c8',
   // Order matches the object's four designed states in src/lib/objectStates.ts
@@ -38,6 +40,7 @@ export const config = {
         discipline: 'Brand Identity / Hospitality',
         year: 2026,
         shape: { length: 0.55, angle: 0.5, bend: 0.58, thick: 0.36, lean: 0.25, peak: 0.3, lobes: 2 },
+        status: 'live',
       },
       // Long, level and even: a shelf
       {
@@ -66,6 +69,14 @@ export const config = {
     ],
     uiux: [
       {
+        id: 'fittrack',
+        name: 'FitTrack',
+        discipline: 'Fitness & wellness app',
+        year: 2025,
+        status: 'live',
+        shape: { length: 0.84, angle: 0.9, bend: -0.4, thick: 0.31, lean: 0.42, peak: 0.78, lobes: 2 },
+      },
+      {
         id: 'tripmate',
         name: 'TripMate',
         discipline: 'Travel planning app',
@@ -86,21 +97,19 @@ export const config = {
         year: 2025,
         shape: { length: 1.05, angle: 2.7, bend: 0.08, thick: 0.28, lean: 0.38, peak: 0.2, lobes: 1 },
       },
-      {
-        id: 'fittrack',
-        name: 'FitTrack',
-        discipline: 'Fitness & wellness app',
-        year: 2025,
-        shape: { length: 0.84, angle: 0.9, bend: -0.4, thick: 0.31, lean: 0.42, peak: 0.78, lobes: 2 },
-      },
     ],
     'art-direction': [
-      placeholder(1, 'Project One'),
-      placeholder(2, 'Project Two'),
-      placeholder(3, 'Project Three'),
-      placeholder(4, 'Project Four'),
+      { id: 'low-tide', name: 'Low Tide', discipline: 'Art Direction / Fashion Editorial' },
+      { id: 'night-shift', name: 'Night Shift', discipline: 'Art Direction / Music Video' },
+      { id: 'still-life', name: 'Still Life', discipline: 'Art Direction / Product Campaign' },
+      { id: 'afterglow', name: 'Afterglow', discipline: 'Art Direction / Album Artwork' },
     ],
-    creative: [placeholder(1, 'Project One'), placeholder(2, 'Project Two'), placeholder(3, 'Project Three'), placeholder(4, 'Project Four')],
+    creative: [
+      { id: 'signal', name: 'Signal', discipline: 'Creative Development / Live Visuals' },
+      { id: 'loop', name: 'Loop', discipline: 'Creative Development / Motion System' },
+      { id: 'pulse', name: 'Pulse', discipline: 'Creative Development / LED Stage Content' },
+      { id: 'drift', name: 'Drift', discipline: 'Creative Development / Interactive Web', status: 'live' },
+    ],
   } as Record<'brand' | 'uiux' | 'art-direction' | 'creative', Project[]>,
 } as const
 

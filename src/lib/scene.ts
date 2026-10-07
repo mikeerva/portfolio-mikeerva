@@ -22,6 +22,8 @@ export const object = {
   heroLink: null as { x: number; y: number } | null,
   // How far through the open project's case study the reader has scrolled (0..1)
   projectScroll: 0,
+  // About's portrait, called every frame with how far it has risen open (0..1, eased)
+  onAboutFrame: null as ((reveal: number) => void) | null,
   // Called by the canvas every frame with the eased values it rendered the mass with,
   // so anything placed around the mass rides the same motion instead of its own loop.
   onFrame: null as ((frame: ObjectFrame) => void) | null,
