@@ -16,6 +16,7 @@ const loaders: Record<string, () => Promise<ComponentType>> = {
   shoply: () => import('./uiux/UIUXCaseStudies').then((m) => m.ShoplyCaseStudy),
   fittrack: () => import('./fittrack/FitTrackCaseStudy').then((m) => m.FitTrackCaseStudy),
   drift: () => import('./drift/DriftCaseStudy').then((m) => m.DriftCaseStudy),
+  pulse: () => import('./pulse/PulseCaseStudy').then((m) => m.PulseCaseStudy),
 }
 
 export const caseStudies: Record<string, LazyExoticComponent<ComponentType>> = Object.fromEntries(

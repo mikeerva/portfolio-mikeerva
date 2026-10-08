@@ -1,0 +1,10 @@
+{
+  "name": "pulse-pipeline",
+  "private": true,
+  "type": "module",
+  "description": "PULSE post-production: contact sheets, web encoding (AVIF, MP4) and asset publishing",
+  "devDependencies": {
+    "ffmpeg-static": "^5.2.0",
+    "sharp": "^0.34.0"
+  }
+}

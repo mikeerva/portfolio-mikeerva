@@ -99,7 +99,15 @@ export const config = {
       },
     ],
     'art-direction': [
-      { id: 'low-tide', name: 'Low Tide', discipline: 'Art Direction / Fashion Editorial' },
+      // Arched and closed, like a headband over two ear cups
+      {
+        id: 'pulse',
+        name: 'Pulse',
+        discipline: 'Art Direction / Brand Campaign',
+        year: 2026,
+        shape: { length: 0.6, angle: 0, bend: 0.55, thick: 0.34, lean: 0.5, peak: 0.5, lobes: 0 },
+        status: 'live',
+      },
       { id: 'night-shift', name: 'Night Shift', discipline: 'Art Direction / Music Video' },
       { id: 'still-life', name: 'Still Life', discipline: 'Art Direction / Product Campaign' },
       { id: 'afterglow', name: 'Afterglow', discipline: 'Art Direction / Album Artwork' },
@@ -107,7 +115,7 @@ export const config = {
     creative: [
       { id: 'signal', name: 'Signal', discipline: 'Creative Development / Live Visuals' },
       { id: 'loop', name: 'Loop', discipline: 'Creative Development / Motion System' },
-      { id: 'pulse', name: 'Pulse', discipline: 'Creative Development / LED Stage Content' },
+      { id: 'strobe', name: 'Strobe', discipline: 'Creative Development / LED Stage Content' },
       { id: 'drift', name: 'Drift', discipline: 'Creative Development / Interactive Web', status: 'live' },
     ],
   } as Record<'brand' | 'uiux' | 'art-direction' | 'creative', Project[]>,
