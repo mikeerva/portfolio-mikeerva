@@ -6,6 +6,22 @@ import { lazy, type ComponentType, type LazyExoticComponent } from 'react'
 // Every case study is its own chunk, code and styles, fetched the first time its project's page
 // is built: the site's first load carries none of them, so adding projects never makes it heavier.
 // `preloadCaseStudy` starts that fetch early (on hover, say), so the page is there when it opens.
+// The case studies' own type families, beyond the site's: asked for once, with the first case
+// study fetched, so the site's first load doesn't wait on them. Resolves once they're declared.
+const CASE_FONTS =
+  'https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Mono:wght@400;500&family=DM+Mono:wght@400;500&family=Archivo:wdth,wght@62..125,300..900&display=swap'
+let caseFonts: Promise<void> | null = null
+function loadCaseFonts() {
+  caseFonts ??= new Promise<void>((resolve) => {
+    const link = document.createElement('link')
+    link.rel = 'stylesheet'
+    link.href = CASE_FONTS
+    link.onload = link.onerror = () => resolve()
+    document.head.appendChild(link)
+  })
+  return caseFonts
+}
+
 const loaders: Record<string, () => Promise<ComponentType>> = {
   fold: () => import('./fold/FoldCaseStudy').then((m) => m.FoldCaseStudy),
   'open-shelf': () => import('./open-shelf/OpenShelfCaseStudy').then((m) => m.OpenShelfCaseStudy),
@@ -20,7 +36,13 @@ const loaders: Record<string, () => Promise<ComponentType>> = {
 }
 
 export const caseStudies: Record<string, LazyExoticComponent<ComponentType>> = Object.fromEntries(
-  Object.entries(loaders).map(([id, load]) => [id, lazy(() => load().then((c) => ({ default: c })))]),
+  Object.entries(loaders).map(([id, load]) => [
+    id,
+    lazy(() => {
+      void loadCaseFonts()
+      return load().then((c) => ({ default: c }))
+    }),
+  ]),
 )
 
 // The web fonts a case study sets its type in, beyond the site's own. Fetched with it: arriving
@@ -35,5 +57,8 @@ const fonts: Record<string, string[]> = {
 
 export function preloadCaseStudy(id: string) {
   void loaders[id]?.()
-  for (const font of fonts[id] ?? []) document.fonts.load(font).catch(() => {})
+  // Once the families are declared, the case study's own are fetched too
+  void loadCaseFonts().then(() => {
+    for (const font of fonts[id] ?? []) document.fonts.load(font).catch(() => {})
+  })
 }
