@@ -39,18 +39,22 @@ const pour = [0.65, 0, 0.25, 1] as const
 // A link's letters (k, from 1; 0 is its number) condense out of the liquid once it has spread:
 // each comes into focus from a soft blur, settling from slightly larger and lower, one after
 // another along the word and the links. Closing, they dissolve back into blur.
+// On touch screens the letters condense the same way but without the blur: a blur per letter,
+// changing every frame, is more than a phone's GPU keeps up with while the menu opens.
+const touch = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches
+const blur = (px: number) => (touch ? {} : { filter: `blur(${px}px)` })
 const condense = (i: number, k: number) => ({
-  initial: { opacity: 0, filter: 'blur(14px)', y: '0.16em', scale: 1.22 },
+  initial: { opacity: 0, ...blur(14), y: '0.16em', scale: 1.22 },
   animate: {
     opacity: 1,
-    filter: 'blur(0px)',
+    ...blur(0),
     y: '0em',
     scale: 1,
     transition: { duration: 0.95, ease, delay: 0.7 + i * 0.09 + k * 0.035 },
   },
   exit: {
     opacity: 0,
-    filter: 'blur(12px)',
+    ...blur(12),
     scale: 1.08,
     transition: { duration: 0.35, ease: [0.65, 0, 0.35, 1] as const, delay: (LINKS.length - 1 - i) * 0.03 },
   },
@@ -58,6 +62,24 @@ const condense = (i: number, k: number) => ({
 
 // How soft the liquid's front is (px): a wide blur, so it spreads as a gradient rather than a line
 const BLUR = 56
+
+// Touch screens: the same liquid pouring from the button, as a circle of the material's gradient
+// opening from it, nearly opaque, with no blur. Blurring the screen-sized liquid and the page
+// behind it on every frame is what made the menu stall on phones.
+function PlainLiquid({ origin: [ox, oy], size: [w, h] }: { origin: [number, number]; size: [number, number] }) {
+  const far = Math.hypot(Math.max(ox, w - ox), Math.max(oy, h - oy)) * 1.02
+  const at = `at ${ox}px ${oy}px`
+  return (
+    <motion.div
+      aria-hidden
+      className="absolute inset-0"
+      style={{ background: `radial-gradient(circle ${at}, #7a76ff, #5653c8 45%, #2c2a7a)`, opacity: 0.96 }}
+      initial={{ clipPath: `circle(0px ${at})` }}
+      animate={{ clipPath: `circle(${far}px ${at})`, transition: { duration: 0.9, ease: [0.4, 0, 0.2, 1] } }}
+      exit={{ clipPath: `circle(0px ${at})`, transition: { duration: 0.65, ease: [0.5, 0, 0.75, 0.4], delay: 0.1 } }}
+    />
+  )
+}
 
 function Liquid({ origin: [ox, oy], size: [w, h] }: { origin: [number, number]; size: [number, number] }) {
   // Drawn past the screen's edges, so the blur never fades them once it has filled the screen
@@ -281,6 +303,8 @@ export function Menu() {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
               />
+            ) : touch ? (
+              <PlainLiquid origin={origin} size={size} />
             ) : (
               <Liquid origin={origin} size={size} />
             )}

@@ -490,7 +490,8 @@ highp ${hp ? `${hp.precision} bits, 2^${hp.rangeMax}` : 'none'} · mediump ${mp 
     let divided: CategoryId | null = null
     const shape = new Float32Array(COUNT * 4)
     let placements: Placement[] = []
-    // Each fragment's centre on screen last frame (device px)
+    // Each fragment's centre on screen last frame, in CSS px (from the bottom), so it holds
+    // whatever resolution the field pass draws the next frame at
     const fragC = new Float32Array(MAX_PROJECTS * 2)
     // Opening a fragment: each blob's place in the opened view (index into the left slots, then
     // the right ones), and whether that's been worked out for the current opening
@@ -790,8 +791,8 @@ highp ${hp ? `${hp.precision} bits, 2^${hp.rangeMax}` : 'none'} · mediump ${mp 
           const lr = sr * rBase * (1 + 0.05 * Math.sin(t * (0.23 + 0.01 * i) + i) + 0.14 * blobPressure(i, t))
           if (g === entered) {
             // Stretched: drawn out along the long axis around the middle of the view
-            const fx = fragC[g * 2]
-            const fy = fragC[g * 2 + 1]
+            const fx = fragC[g * 2] * k
+            const fy = fragC[g * 2 + 1] * k
             const stretchX = portrait ? w / 2 + (wx - fx) * 0.85 : w / 2 + (wx - fx) * 3.2
             const stretchY = portrait ? h / 2 + (wy - fy) * 3.2 : h / 2 + (wy - fy) * 0.85
             const stagger = ((i * 37) % 7) * 0.012
@@ -917,8 +918,8 @@ highp ${hp ? `${hp.precision} bits, 2^${hp.rangeMax}` : 'none'} · mediump ${mp 
           f[g * 3 + 2] = r / k
           // Where the fragment was before any opening moved it, for its stretch
           if (enter === 0) {
-            fragC[g * 2] = fx
-            fragC[g * 2 + 1] = fy
+            fragC[g * 2] = fx / k
+            fragC[g * 2 + 1] = fy / k
           }
         }
         Object.assign(out, { vw: cw, vh: ch, turn, sway, tilt, zoom, cx: layout.cx, cy, unit: layout.unit, split, enter })
