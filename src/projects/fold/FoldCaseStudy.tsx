@@ -4,7 +4,9 @@ import { afterPanelOpens } from '../../lib/scene'
 import { ScrollerContext, useInView, useScrollProgress } from '../scroll'
 import { PHOTOS, photoSrc, type PhotoKey } from './assets'
 import './fold.css'
-import { PATH, VIEWBOX } from './wordmark'
+import { Mark, FoldGraphic } from './FoldPrimitives'
+import { BrandSystem } from './BrandSystem'
+import { PackagingStudy } from './PackagingStudy'
 
 // FOLD — Brand Identity / Hospitality, 2026.
 // The case study scrolls inside the project panel and is sized by it (cqw / cqh). Chapters:
@@ -34,6 +36,7 @@ export function FoldCaseStudy() {
         <Opening />
         <Idea />
         <Wordmark />
+        <BrandSystem />
         <Packaging />
         <Space />
         <Print />
@@ -48,15 +51,8 @@ export function FoldCaseStudy() {
 
 // ---------------------------------------------------------------- building blocks
 
-function Mark({ className = '', viewBox = VIEWBOX, style }: { className?: string; viewBox?: string; style?: CSSProperties }) {
-  return (
-    <svg viewBox={viewBox} className={className} style={style} role="img" aria-label="FOLD" fill="currentColor">
-      <path fillRule="evenodd" d={PATH} />
-    </svg>
-  )
-}
-
-function Photo({ k, className = '', style }: { k: PhotoKey; className?: string; style?: CSSProperties }) {
+// `focus`: the point of the photograph kept in view when its box crops it (object-position)
+function Photo({ k, className = '', style, focus }: { k: PhotoKey; className?: string; style?: CSSProperties; focus?: string }) {
   const ready = useContext(PhotosReady)
   return (
     <div className={`overflow-hidden ${className}`} style={style}>
@@ -66,6 +62,7 @@ function Photo({ k, className = '', style }: { k: PhotoKey; className?: string; 
         alt={PHOTOS[k].alt}
         decoding="async"
         className="fold-photo"
+        style={focus ? { objectPosition: focus } : undefined}
         onLoad={(e) => e.currentTarget.classList.add('is-loaded')}
         onError={(e) => e.currentTarget.classList.add('is-loaded')}
       />
@@ -171,6 +168,7 @@ function Opening() {
   return (
     // the photograph's own black, so where it ends there is no step in tone
     <section ref={ref} className="relative overflow-hidden bg-[#090806] text-[var(--paper)]" style={{ height: '100cqh', minHeight: 520 }}>
+      <h1 className="sr-only">FOLD — a personal brand identity concept</h1>
       {/* The campaign photograph, full bleed. Its black merges with the section's own black, so
           it has no visible edge. Wide panels: the whole hero, cropped to keep the cup on the
           right and the left side empty for the wordmark. Narrow panels: the lower part, so the
@@ -179,7 +177,7 @@ function Opening() {
           which rises and turns a little faster than the ground, for depth. */}
       <div
         data-scroll
-        className="absolute inset-x-0 bottom-0 h-[56%] [container-type:size] [mask-image:linear-gradient(to_bottom,transparent,black_22%)] @2xl:inset-0 @2xl:h-full @2xl:[mask-image:none]"
+        className="absolute inset-x-0 bottom-0 h-[64%] [container-type:size] [mask-image:linear-gradient(to_bottom,transparent,black_22%)] @2xl:inset-0 @2xl:h-full @2xl:[mask-image:none]"
         style={{ transform: 'translateY(calc(var(--p, 0) * 3cqh)) scale(calc(1 + var(--p, 0) * 0.03))', transformOrigin: '70% 60%' }}
       >
         {/* The photograph's frame, covering this box the way object-cover would (held at 78% across
@@ -216,7 +214,7 @@ function Opening() {
       </div>
 
       <div className="fold-mono absolute inset-x-[5cqw] top-[4.5cqh] flex justify-between text-[10px] text-[var(--paper)]/60 @2xl:text-[11px]">
-        <span>Case study 01 / 04</span>
+        <span>Personal concept / FOLD</span>
         <span className="text-right">Brand identity / Hospitality / 2026</span>
       </div>
 
@@ -255,13 +253,39 @@ function Opening() {
 // city photograph and then the cup and bag pass beside it.
 const BEHAVIOUR = ['Grab', 'Carry', 'Open', 'Fold', 'Eat', 'Go']
 
+const BRIEF = [
+  ['Audience', 'People picking up coffee and food as they move through the city.'],
+  ['Project scope', 'Visual identity, packaging, print, spatial applications and digital experience.'],
+  ['Context', 'Personal exploration. Applications visualise the proposed brand world.'],
+] as const
+
 function Idea() {
   const carry = useScrollProgress<HTMLDivElement>('cross')
   return (
-    <section
-      className="relative px-[5cqw] pb-[20cqh] pt-[14cqh]"
-      style={{ background: '#F4EDE2', color: '#111111', ['--signal' as string]: '#E6452E', ['--ink' as string]: '#111111' }}
-    >
+    <section className="relative bg-[var(--paper)] px-[5cqw] pb-[10cqh] pt-[8cqh]">
+      {/* the brief: what the project is, for whom, and how far it goes */}
+      <div className="fold-brief" aria-label="Project brief">
+        <div>
+          <p className="fold-mono fold-eyebrow">Personal concept / 2026</p>
+          <h2 className="fold-display">
+            An everyday ritual,
+            <br />
+            given an identity.
+          </h2>
+          <p className="fold-copy">
+            FOLD is a self-initiated identity concept for an Athens neighbourhood bakery and coffee spot. The brief: make the everyday act
+            of picking up coffee recognisable, from the first sign to the last piece of paper.
+          </p>
+        </div>
+        <dl>
+          {BRIEF.map(([term, text]) => (
+            <div key={term}>
+              <dt className="fold-mono">{term}</dt>
+              <dd>{text}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
       <div className="grid grid-cols-1 gap-[7cqh] @2xl:grid-cols-[0.9fr_1.5fr_0.78fr] @2xl:gap-x-[3cqw] @2xl:gap-y-0">
         {/* LEFT — the concept, held while the photographs pass */}
         <div className="@2xl:sticky @2xl:top-[9cqh] @2xl:self-start">
@@ -282,7 +306,7 @@ function Idea() {
               FOLD lives in the everyday movements of the city — grabbing a coffee, carrying a bag, opening a wrapper, eating on
               the move and getting on with the day.
             </p>
-            <p className="mt-3">The identity comes from these behaviours, not from decorative fold graphics.</p>
+            <p className="mt-3">A folded corner becomes the visual link between these everyday moments.</p>
           </In>
           <div className="mt-[5cqh] border-t border-[#111111]/15 pt-[3cqh]">
             <In kind="lines" className="fold-display flex flex-wrap gap-x-[1.1cqw] gap-y-1" style={{ fontSize: 'max(18px, 2.1cqw)' }}>
@@ -342,9 +366,9 @@ function Wordmark() {
         {/* O → L */}
         <figure>
           <In kind="rise" className="overflow-hidden bg-[var(--kraft-light)] py-[5cqh]">
-            <div className="relative mx-auto w-fit">
+            <div className="relative mx-auto w-full">
               {/* the O and the L alone: the F ends at 217, the D starts at 727 */}
-              <Mark viewBox="220 -10 500 445" className="block h-[38cqh] max-h-[360px] text-[var(--ink)]" />
+              <Mark viewBox="220 -10 500 445" className="block h-auto w-full text-[var(--ink)]" />
               {/* where the O meets the L */}
               <span aria-hidden className="absolute inset-y-[-3cqh] w-px bg-[var(--signal)]" style={{ left: `${((496.3 - 220) / 500) * 100}%` }} />
             </div>
@@ -354,17 +378,16 @@ function Wordmark() {
               O → L
             </span>
             <span className="text-[13px] leading-relaxed text-[var(--ink)]/75">
-              The fold. The O presses into the L until they share an edge — two forms compressed into one, the way layers of
-              dough become a single pastry.
+              Close, but separate. The O ends at 490.2 units; the L begins at 502.4. A 12.2-unit gap keeps both forms distinct within the dense wordmark.
             </span>
           </figcaption>
         </figure>
         {/* L → D */}
         <figure>
           <In kind="rise" delay={0.12} className="overflow-hidden bg-[var(--ink)] py-[5cqh]">
-            <div className="relative mx-auto w-fit">
+            <div className="relative mx-auto w-full">
               {/* the L and the D alone: the O ends at 490 */}
-              <Mark viewBox="496 -10 514 445" className="block h-[38cqh] max-h-[360px] text-[var(--paper)]" />
+              <Mark viewBox="496 -10 514 445" className="block h-auto w-full text-[var(--paper)]" />
               {/* the open gap between the L and the D */}
               <span aria-hidden className="absolute inset-y-[-3cqh] w-px bg-[var(--signal)]" style={{ left: `${((720.5 - 496) / 514) * 100}%` }} />
             </div>
@@ -374,29 +397,13 @@ function Wordmark() {
               L → D
             </span>
             <span className="text-[13px] leading-relaxed text-[var(--ink)]/75">
-              The breath. A quieter gap, so the word can open again. One tight relationship, one released one — the mark
-              folds and unfolds as you read it.
+              A consistent rhythm. The L ends at 714.4 units; the D begins at 726.7. The 12.3-unit gap echoes O–L. The open space above the L gives this pair its different visual weight.
             </span>
           </figcaption>
         </figure>
       </div>
 
-      {/* in use, at scale */}
-      <div className="mt-[10cqh] grid grid-cols-2 gap-[2.5cqw] @2xl:grid-cols-4">
-        {(
-          [
-            { k: 'markSticker', label: 'Sticker' },
-            { k: 'markCup', label: 'Cup / 40 mm' },
-            { k: 'markBag', label: 'Bag stamp' },
-            { k: 'markReceipt', label: 'Receipt / 14 mm' },
-          ] as const
-        ).map(({ k, label }, i) => (
-          <In key={label} kind="rise" delay={i * 0.07}>
-            <Photo k={k} className="aspect-[3/4] w-full" />
-            <p className="fold-mono mt-2 text-[10px] text-[var(--ink)]/55">{label}</p>
-          </In>
-        ))}
-      </div>
+      <p className="fold-mono mt-[5cqh] text-[10px] text-[var(--ink)]/65">Master drawing / 1000 × 425 units / uniform scaling</p>
     </section>
   )
 }
@@ -405,20 +412,16 @@ function Wordmark() {
 
 // The one move every piece makes
 const MOVE: [string, string][] = [
-  ['Close', 'Lid, flap or wrap'],
-  ['Fold', 'One corner, turned back'],
-  ['Signal', 'Seals it, shows where to open'],
+  ['Recognise', 'One wordmark across the range'],
+  ['Carry', 'Paper, board and everyday objects'],
+  ['Open', 'Colour draws attention to the edge'],
 ]
 
 // The range, set out like a catalogue: same tile, same caption, so the fold is what differs
 const PACKS: { k: PhotoKey; name: string; note: string }[] = [
   { k: 'cupHot', name: 'Cup', note: '8 oz' },
   { k: 'kraftBag', name: 'Carrier bag', note: 'Kraft' },
-  { k: 'boxOrange', name: 'Corner seal', note: 'Signal' },
   { k: 'pastryBag', name: 'Pastry bag', note: 'Sticker seal' },
-  { k: 'napkins', name: 'Napkin', note: 'Printed' },
-  { k: 'stickers', name: 'Sticker', note: 'Signal' },
-  { k: 'boxOpen', name: 'Pastry box', note: 'Opened' },
   { k: 'wrapPaper', name: 'Wrap', note: 'Printed paper' },
 ]
 
@@ -430,16 +433,15 @@ function Packaging() {
           <Head n="03" title="Packaging" />
           <In kind="lines" className="fold-display mt-5" style={{ fontSize: 'max(34px, 7.6cqw)' }}>
             <span>
-              <span>Folded,</span>
+              <span>Made to</span>
             </span>
             <span>
-              <span>not decorated.</span>
+              <span>go with you.</span>
             </span>
           </In>
         </div>
         <In kind="rise" as="p" className="max-w-[46ch] text-[13px] leading-relaxed text-[var(--ink)]/75">
-          Every piece closes the same way: a corner folds back and the signal colour shows underneath. The fold is the brand
-          mark on the move — it seals, it tells you where to open, and it is still there when the paper is crumpled.
+          Different objects, one visual language. The cup, carrier and pastry box share the same dense mark and coloured planes. The box uses a lid and sticker seal; bags and wrappers bring their own folds.
         </In>
       </div>
 
@@ -468,10 +470,12 @@ function Packaging() {
         </div>
       </div>
 
+      <PackagingStudy />
+
       {/* the range */}
       <div className="fold-mono mt-[11cqh] flex justify-between border-t border-[var(--ink)]/20 pt-3 text-[10px] text-[var(--ink)]/55 @2xl:text-[11px]">
-        <span>The range</span>
-        <span>{PACKS.length} pieces / 1 move</span>
+        <span>Selected applications</span>
+        <span>{PACKS.length} pieces / one identity</span>
       </div>
       <div className="mt-[4cqh] grid grid-cols-2 gap-x-[3cqw] gap-y-[5cqh] @2xl:grid-cols-4 @2xl:gap-x-[2cqw]">
         {PACKS.map(({ k, name, note }, i) => (
@@ -505,25 +509,18 @@ const MATERIALS = [
 
 function Space() {
   return (
-    <section className="bg-[var(--ink)] pb-[12cqh] text-[var(--paper)]">
-      <div className="relative">
-        <In kind="open">
-          {/* at the photograph's own proportions, so it is never cropped, whatever the screen */}
-          <Photo k="storefront" className="aspect-[2/1] w-full" />
-        </In>
-        {/* a soft shade from the top-left, so the running head reads over the bright tree */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0"
-          style={{ background: 'radial-gradient(ellipse 60% 55% at 0% 0%, rgba(21,19,17,0.9) 0%, rgba(21,19,17,0.55) 40%, transparent 80%)' }}
-        />
-        <div className="absolute left-[5cqw] top-[5cqh]">
-          <Head n="04" title="Physical space" light />
-        </div>
-      </div>
+    <section className="bg-[var(--ink)] pb-[12cqh] pt-[8cqh] text-[var(--paper)]">
+      {/* the running head in the dark above the storefront, where it reads */}
+      <Head n="04" title="Physical space" light className="mb-[4cqh] px-[5cqw]" />
+      <In kind="open">
+        {/* at the photograph's own proportions, so it is never cropped, whatever the screen */}
+        <Photo k="storefront" className="aspect-[2/1] w-full" />
+      </In>
       <div className="grid gap-[5cqw] px-[5cqw] pt-[8cqh] @2xl:grid-cols-[1.45fr_1fr]">
+        {/* on wide panels it fills its row, as tall as the column beside it, so no empty block
+            is left under it */}
         <In kind="drop">
-          <Photo k="counter" className="aspect-[4/3] w-full" />
+          <Photo k="counter" focus="12% 50%" className="aspect-[4/3] w-full @2xl:aspect-auto @2xl:h-full" />
         </In>
         <div className="flex flex-col justify-between gap-[5cqh]">
           <In kind="lines" className="fold-display" style={{ fontSize: 'max(30px, 5.6cqw)' }}>
@@ -538,8 +535,7 @@ function Space() {
             </span>
           </In>
           <p className="max-w-[40ch] text-[13px] leading-relaxed text-[var(--paper)]/65">
-            A counter, not a stage. Raw concrete and steel carry the paper colours; signage is printed, not lit; the signal
-            orange appears only where something folds — on the A-frame, the boxes, the corner of the menu.
+            Concrete, dark framing and warm light extend the material palette. The wordmark anchors the storefront; folded colour planes connect signage, menus and takeaway packaging.
           </p>
           <In kind="rise" delay={0.1} className="ml-auto w-[54%]">
             <Photo k="aFrame" className="aspect-[3/4] w-full" />
@@ -585,100 +581,29 @@ function Piece({ n, name, note, light = false }: { n: string; name: string; note
   )
 }
 
-// The printed set, laid out like sheets on a table: tall and wide pieces alternating on an
-// uneven grid, each unfolding into view, each drifting at its own rate as the chapter passes so
-// the set has depth. The phrase the poster carries sits in the middle of it, set large.
+// A shorter print edit: one functional layout, one return visit, one staff application.
 function Print() {
-  const ref = useScrollProgress<HTMLElement>('cross')
-  const drift = (d: number): CSSProperties => ({ transform: `translateY(calc((var(--p, 0.5) - 0.5) * ${d}cqh))` })
   return (
-    <section ref={ref} className="relative overflow-hidden bg-[#d8d1c6] px-[5cqw] pb-[14cqh] pt-[10cqh]">
-      <div className="grid gap-[4cqh] @2xl:grid-cols-[1.3fr_1fr] @2xl:items-end @2xl:gap-[5cqw]">
-        <div>
-          <Head n="05" title="Menu / print" />
-          <In kind="lines" className="fold-display mt-5" style={{ fontSize: 'max(34px, 7cqw)' }}>
-            <span>
-              <span>Paper that</span>
-            </span>
-            <span>
-              <span className="text-[var(--signal)]">does what it says.</span>
-            </span>
-          </In>
-        </div>
-        <In kind="rise" as="p" className="max-w-[44ch] text-[13px] leading-relaxed text-[var(--ink)]/75">
-          One ink and the signal colour, on uncoated stock. The wordmark leads, the mono line informs, and the folded corner
-          turns up wherever the paper goes — the menu, the receipt, the card in a wallet, the shirt behind the counter.
+    <section className="fold-editorial bg-[#d8d1c6]">
+      <Head n="05" title="Menu / print" />
+      <div className="fold-section-intro">
+        <h2 className="fold-display fold-section-title">Read it.<br /><span>Keep it.</span></h2>
+        <p className="fold-copy">Three different jobs for the identity: help someone choose, invite them back, and connect the people behind the counter to the brand.</p>
+      </div>
+      <In as="figure" kind="drop">
+        <Photo k="printMenuSpread" className="aspect-[3/2] w-full" />
+        <Piece n="1" name="Menu spread" note="Clear categories, readable prices, room to choose" />
+      </In>
+      <div className="mt-[6cqh] grid items-start gap-[4cqw] @2xl:grid-cols-2">
+        <In as="figure" kind="rise">
+          <Photo k="printLoyalty" className="aspect-[2/3] w-full" />
+          <Piece n="2" name="Loyalty card" note="Eight visits, one coffee — a reason to return" />
         </In>
-      </div>
-
-      {/* the menu: its cover, then opened */}
-      <div className="mt-[9cqh] grid grid-cols-12 items-start gap-x-[3cqw] gap-y-[6cqh]">
-        <figure data-scroll className="col-span-12 @2xl:col-span-5" style={drift(-8)}>
-          <In kind="open">
-            <div className="relative">
-              <Photo k="printMenuCover" className="aspect-[2/3] w-full shadow-[0_40px_70px_-40px_rgba(21,19,17,0.6)]" />
-              <Corner className="right-0 top-0" size="7cqw" />
-            </div>
-          </In>
-          <Piece n="1" name="Menu" note="Cover" />
-        </figure>
-        <figure data-scroll className="col-span-12 @2xl:col-span-7 @2xl:mt-[22cqh]" style={drift(5)}>
-          <In kind="drop">
-            <Photo k="printMenuSpread" className="aspect-[3/2] w-full shadow-[0_40px_70px_-40px_rgba(21,19,17,0.6)]" />
-          </In>
-          <Piece n="2" name="Menu" note="Spread — coffee, brunch, bakery, all day" />
-        </figure>
-      </div>
-
-      {/* what's handed over the counter */}
-      <div className="mt-[10cqh] grid grid-cols-12 items-start gap-x-[3cqw] gap-y-[6cqh]">
-        <figure data-scroll className="col-span-12 @2xl:col-span-7" style={drift(-4)}>
-          <In kind="drop">
-            <Photo k="printReceipt" className="aspect-[3/2] w-full shadow-[0_40px_70px_-40px_rgba(21,19,17,0.6)]" />
-          </In>
-          <Piece n="3" name="Receipt" note="Mono, torn edge, signed off in the voice" />
-        </figure>
-        <figure data-scroll className="col-span-10 col-start-3 @2xl:col-span-4 @2xl:col-start-9 @2xl:-mt-[6cqh] @2xl:rotate-[1.5deg]" style={drift(9)}>
-          <In kind="open">
-            <Photo k="printLoyalty" className="aspect-[2/3] w-full shadow-[0_40px_70px_-40px_rgba(21,19,17,0.6)]" />
-          </In>
-          <Piece n="4" name="Loyalty card" note="Eight folds, one coffee" />
-        </figure>
-      </div>
-
-      {/* on the wall and on the staff: the poster's line, set large between them */}
-      <div className="mt-[10cqh] grid grid-cols-12 items-center gap-x-[3cqw] gap-y-[6cqh]">
-        <figure data-scroll className="col-span-8 @2xl:col-span-4" style={drift(-7)}>
-          <In kind="open">
-            <Photo k="printPoster" className="aspect-[2/3] w-full shadow-[0_40px_70px_-40px_rgba(21,19,17,0.6)]" />
-          </In>
-          <Piece n="5" name="Poster" note="Window and wall" />
-        </figure>
-        <div className="col-span-12 @2xl:col-span-4">
-          <In kind="lines" className="fold-display" style={{ fontSize: 'max(40px, 6.2cqw)' }}>
-            <span>
-              <span>Good</span>
-            </span>
-            <span>
-              <span>things</span>
-            </span>
-            <span>
-              <span className="text-[var(--signal)]">ahead.</span>
-            </span>
-          </In>
-          <In kind="rise" delay={0.2} className="fold-mono mt-[3cqh] text-[10px] text-[var(--ink)]/60 @2xl:text-[11px]">
-            Coffee /<br />
-            Food /<br />
-            People /<br />
-            Neighbourhood
-          </In>
-        </div>
-        <figure data-scroll className="col-span-10 col-start-3 @2xl:col-span-4 @2xl:col-start-9 @2xl:mt-[16cqh]" style={drift(6)}>
-          <In kind="drop">
-            <Photo k="printTee" className="aspect-[1312/1199] w-full shadow-[0_40px_70px_-40px_rgba(21,19,17,0.6)]" />
-          </In>
-          <Piece n="6" name="Staff tee" note="The fold, worn" />
-        </figure>
+        <In as="figure" kind="rise" delay={0.1} className="@2xl:mt-[8cqh]">
+          <Photo k="printTee" className="aspect-[1312/1199] w-full" />
+          <Piece n="3" name="Staff tee" note="The identity, worn" />
+          <p className="fold-copy mt-6">The large mark identifies. The small type explains. Colour stays at the edge, giving the rest of the composition space.</p>
+        </In>
       </div>
     </section>
   )
@@ -690,11 +615,12 @@ function Print() {
 // whichever kind it holds.
 type SocialPost = { caption: string } & (
   | { id: string; type: 'placeholder' }
+  | { id: string; type: 'artwork' }
   | { id: string; type: 'image'; src: string; alt: string }
   | { id: string; type: 'video'; src: string; poster?: string; alt: string }
 )
 
-// The nine posts, in feed order. Each has visible campaign copy as well as descriptive alt text.
+// Five selected posts: alternate everyday scenes with a quiet, vector-led brand statement.
 // The feed measures itself, so the sticky journey follows the media and caption heights.
 const SOCIAL_POSTS: SocialPost[] = [
   {
@@ -713,48 +639,18 @@ const SOCIAL_POSTS: SocialPost[] = [
   },
   {
     id: '03',
-    type: 'image',
-    src: '/projects/fold/social/post-03-v2.jpg',
-    caption: 'Same routine. Different angle. A familiar coffee and a different street home.',
-    alt: 'Same Routine Different Angle — a FOLD poster on a weathered wall beside a coffee cup and the branded kraft carrier bag with flat paper handles and red-orange fold graphics',
+    type: 'artwork',
+    caption: 'Good things inside. A simple promise, from the first coffee to the last crumb.',
   },
   {
     id: '04',
     type: 'image',
-    src: '/projects/fold/social/post-04.jpg',
-    caption: 'One more layer. Paper, colour, a corner turned back. That is where the story unfolds.',
-    alt: 'One More Layer — a FOLD poster with the wordmark showing fold planes entering from multiple corners, kraft paper aesthetic',
+    src: '/projects/fold/box-open.jpg',
+    caption: 'Lift the lid. Follow the crumbs. Good things inside, wherever the day takes you.',
+    alt: 'An open FOLD pastry box with a croissant, branded tissue and a round orange sticker seal',
   },
   {
     id: '05',
-    type: 'image',
-    src: '/projects/fold/social/post-05.jpg',
-    caption: 'Coffee first. Then a croissant. Leave a little room in your routine for both.',
-    alt: 'Same Routine Different Angle — a FOLD coffee with latte art on a sunlit stone surface, paired with a croissant, fold planes in the corner',
-  },
-  {
-    id: '06',
-    type: 'image',
-    src: '/projects/fold/social/post-06.jpg',
-    caption: 'Good things inside. Lift the corner, open the box, follow the crumbs.',
-    alt: 'Good Things Inside. — an opened FOLD kraft takeaway box on a sunlit stone floor, its red inner flaps folded back around wrapped pastries',
-  },
-  {
-    id: '07',
-    type: 'image',
-    src: '/projects/fold/social/post-07-v2.jpg',
-    caption: 'A coffee, a croissant, a moment in the sun. Good things come with a few crumbs.',
-    alt: 'Good things inside — the cream FOLD hero cup with a black lid and straw, a croissant and branded FOLD napkins on a sunlit stone counter',
-  },
-  {
-    id: '08',
-    type: 'image',
-    src: '/projects/fold/social/post-08-v2.jpg',
-    caption: 'One more layer for the road. Fold it, carry it, open it wherever the day takes you.',
-    alt: 'One more layer — the FOLD kraft carrier bag with paper handles, an open pastry box with branded tissue and a round seal, and printed FOLD napkins on a concrete counter',
-  },
-  {
-    id: '09',
     type: 'image',
     src: '/projects/fold/social/post-09-v2.jpg',
     caption: 'The light changes. The neighbourhood stays. Coffee, food, people. Athens, every day.',
@@ -774,6 +670,9 @@ const SOCIAL_HIGHLIGHTS: { label: string; photo: PhotoKey; title: string; copy: 
 const SOCIAL_BG = '#f7f3ec'
 // How long the phone holds still before the feed starts and after it ends (of the view height)
 const SOCIAL_HOLD = 0.16
+// How far the feed travels for each pixel scrolled: a little faster than the page, so five posts
+// don't take five screens of scrolling
+const SOCIAL_RATE = 1.7
 // Below this panel width (px) there's no phone: the feed is laid out in the page itself
 const SOCIAL_NARROW = 672
 // The active label's colour, cycling through the identity's own colours
@@ -851,6 +750,13 @@ function SocialMedia({ post }: { post: SocialPost }) {
   const ready = useContext(PhotosReady)
   return (
     <div className="relative aspect-[4/5] w-full overflow-hidden bg-[#ebe4d8]">
+      {post.type === 'artwork' && (
+        <div className="fold-social-artwork">
+          <Mark />
+          <p className="fold-display">Good<br />things<br />inside.</p>
+          <p className="fold-mono">Coffee / Bakery / Athens</p>
+        </div>
+      )}
       {post.type === 'placeholder' && (
         <div className="absolute inset-[5%] grid place-items-center border border-[var(--ink)]/12">
           {/* a small registration mark at the centre */}
@@ -1025,7 +931,7 @@ function Social() {
       // browser lay the section out early
       if (box.bottom < view.top - view.height || box.top > view.bottom + view.height) return
       const scrolled = view.top - box.top
-      const y = Math.min(Math.max(scrolled - hold, 0), journey)
+      const y = Math.min(Math.max((scrolled - hold) * SOCIAL_RATE, 0), journey)
       f.style.transform = `translate3d(0, ${-y}px, 0)`
       // The active post: the one under the middle of the screen
       const point = y + s.clientHeight / 2
@@ -1046,7 +952,7 @@ function Social() {
       if (isNarrow || !f || !s) return
       journey = Math.max(f.scrollHeight - s.clientHeight, 0)
       hold = panel.clientHeight * SOCIAL_HOLD
-      setHeight(Math.round(panel.clientHeight + hold * 2 + journey))
+      setHeight(Math.round(panel.clientHeight + hold * 2 + journey / SOCIAL_RATE))
       update()
     }
     const onScroll = () => {
@@ -1070,8 +976,9 @@ function Social() {
     <>
       <Head n="06" title="Social media" />
       <h3 className="fold-display mt-4" style={{ fontSize: 'max(30px, 4.6cqw)' }}>
-        Social media.
+        An everyday<br />voice.
       </h3>
+      <p className="fold-mono mt-3 text-[10px] opacity-60">Five selected posts / concept feed</p>
     </>
   )
 
@@ -1140,17 +1047,13 @@ function Social() {
 // of whatever they sit on (top-right as drawn; turned for the other corners)
 function FoldPlanes({ corner = 'tr', className = '' }: { corner?: 'tr' | 'bl'; className?: string }) {
   return (
-    <svg
+    <div
       aria-hidden
-      viewBox="0 0 100 100"
-      preserveAspectRatio="none"
       className={`pointer-events-none absolute ${className}`}
       style={{ transform: corner === 'bl' ? 'rotate(180deg)' : undefined }}
     >
-      <polygon points="100,0 44,0 100,62" fill="var(--orange)" />
-      <polygon points="100,0 70,0 100,32" fill="var(--red)" />
-      <polygon points="100,32 100,62 80,42" fill="var(--deep-red)" />
-    </svg>
+      <FoldGraphic className="size-full" />
+    </div>
   )
 }
 
@@ -1502,8 +1405,7 @@ function Motion() {
         Nothing bounces.
       </h3>
       <p className="mt-4 max-w-[46ch] text-[13px] leading-relaxed text-[var(--paper)]/60">
-        Things fold, open and settle — the way paper and dough actually move. Two moves cover almost everything the brand does
-        on screen.
+        A corner reveals; a wordmark rises and settles. Movement follows the paper metaphor while the logo keeps its proportions.
       </p>
       <div className="mt-[7cqh] grid gap-[5cqw] @2xl:grid-cols-2">
         <div ref={reveal} className="fold-demo-reveal">
@@ -1527,7 +1429,7 @@ function Motion() {
             <Mark className="mark w-[70%] text-[var(--ink)]" />
           </div>
           <p className="fold-mono mt-4 flex gap-3 text-[11px]">
-            <span className="step">Compress</span>
+            <span className="step">Gather</span>
             <span className="opacity-40">→</span>
             <span className="step">Open</span>
             <span className="opacity-40">→</span>

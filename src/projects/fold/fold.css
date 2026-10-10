@@ -32,6 +32,79 @@
   font-weight: 400;
 }
 
+/* Editorial specimens share the actual brand primitives, without baked-in mockup lettering. */
+.fold-editorial { padding: clamp(40px, 8cqh, 90px) 5cqw; }
+.fold-eyebrow { font-size: 11px; line-height: 1.6; opacity: .7; }
+.fold-copy { font-size: clamp(13px, 1.35cqw, 16px); line-height: 1.7; max-width: 48ch; }
+.fold-section-intro { display: grid; gap: 24px; align-items: end; margin: 30px 0 48px; }
+.fold-section-title { font-size: clamp(38px, 7cqw, 90px); }
+.fold-section-title span, .fold-type-sample span { color: var(--signal); }
+.fold-brief { display: grid; gap: 32px; padding-bottom: 48px; margin-bottom: 60px; border-bottom: 1px solid #15131133; }
+.fold-brief h2 { font-size: clamp(30px, 4.6cqw, 60px); margin: 18px 0 22px; }
+.fold-brief dl { display: grid; align-content: center; }
+.fold-brief dl > div { padding: 16px 0; border-bottom: 1px solid #15131126; }
+.fold-brief dt { font-size: 10px; margin-bottom: 7px; opacity: .65; }
+.fold-brief dd { font-size: 13px; line-height: 1.6; max-width: 46ch; }
+.fold-system { background: #f7f3ec; }
+.fold-type-specimen { display: grid; border-top: 1px solid #15131133; border-bottom: 1px solid #15131133; }
+.fold-type-lead { padding: 28px 0; }
+.fold-type-sample { font-size: clamp(64px, 12cqw, 148px); margin: 32px 0; }
+.fold-type-detail { display: grid; gap: 32px; padding: 28px 0; border-top: 1px solid #15131133; }
+.fold-mono-sample { font-size: clamp(14px, 2cqw, 23px); line-height: 1.7; margin: 22px 0; }
+.fold-body-sample { font-size: clamp(24px, 3.6cqw, 42px); line-height: 1.2; letter-spacing: -.035em; margin: 22px 0; }
+.fold-palette { display: grid; grid-template-columns: 1fr 1fr 1fr; margin-top: 40px; border: 1px solid #15131126; }
+.fold-palette > div { display: flex; min-height: clamp(140px, 19cqw, 230px); flex-direction: column; justify-content: space-between; padding: clamp(10px, 2cqw, 24px); gap: 30px; }
+.fold-palette .fold-display { font-size: clamp(22px, 3.8cqw, 44px); margin-bottom: 8px; }
+.fold-palette .fold-mono { font-size: clamp(9px, 1.05cqw, 11px); }
+.fold-palette-note { margin-top: 18px; opacity: .7; }
+.fold-rule-heading { display: grid; gap: 20px; margin: 48px 0 24px; align-items: end; }
+.fold-rule-heading h3 { font-size: clamp(28px, 4.2cqw, 54px); }
+.fold-construction { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.fold-construction-drawing { background: var(--paper); aspect-ratio: 1; padding: 18%; }
+.fold-construction-drawing svg { display: block; width: 100%; height: auto; }
+.fold-construction figcaption, .fold-artwork-row figcaption { font-size: 10px; line-height: 1.6; margin-top: 12px; }
+.fold-artwork-row { display: grid; gap: 24px; margin-top: 48px; }
+.fold-artwork { position: relative; overflow: hidden; aspect-ratio: 4 / 3; padding: 10%; display: flex; justify-content: center; align-items: center; }
+.fold-artwork-sticker { background: var(--kraft-light); }
+.fold-artwork-sticker > div { display: grid; place-items: center; width: 64%; aspect-ratio: 1; border-radius: 50%; background: var(--signal); }
+.fold-artwork-sticker svg { width: 72%; }
+.fold-artwork-card { background: var(--ink); color: var(--paper); align-items: start; flex-direction: column; gap: 18px; }
+.fold-artwork-card > svg:first-child { width: 55%; }
+.fold-artwork-card > svg:last-child { position: absolute; right: 0; top: 0; width: 40%; }
+.fold-artwork-card p { font-size: clamp(9px, 1cqw, 11px); }
+.fold-artwork-receipt { background: #dedbd4; }
+.fold-artwork-receipt > div { padding: 24px 18px; background: var(--paper); width: 78%; box-shadow: 0 8px 12px #15131112; }
+.fold-artwork-receipt svg { width: 55%; margin-bottom: 18px; }
+.fold-artwork-receipt p { font-size: 10px; line-height: 1.8; }
+.fold-artwork-receipt hr { margin: 12px 0; border: 0; border-top: 1px dashed #15131166; }
+.fold-pack-study { margin-top: 48px; padding-top: 1px; border-top: 1px solid #15131133; }
+.fold-pack-study-grid { display: grid; gap: 20px; }
+.fold-pack-interactive, .fold-net { background: var(--paper); padding: clamp(16px, 2.5cqw, 32px); }
+.fold-pack-controls { display: flex; gap: 4px; border-bottom: 1px solid #15131133; }
+.fold-pack-controls button { flex: 1; padding: 12px 4px; min-height: 48px; font-size: 13px; border-bottom: 3px solid transparent; }
+.fold-pack-controls button span { font-size: 10px; margin-right: 4px; }
+.fold-pack-controls button[aria-pressed='true'] { border-color: var(--signal); font-weight: 600; }
+.fold-pack-controls button:hover { background: #15131108; }
+.fold-pack-controls button:focus-visible { outline: 2px solid var(--ink); outline-offset: -3px; }
+.fold-pack-interactive svg, .fold-net svg { width: 100%; height: auto; }
+.fold-pack-interactive .fold-copy { min-height: 6em; }
+.fold-net figcaption { font-size: 12px; opacity: .75; }
+.fold-social-artwork { position: relative; display: flex; flex-direction: column; justify-content: space-between; background: var(--signal); color: var(--ink); aspect-ratio: 4 / 5; padding: 10%; overflow: hidden; }
+.fold-social-artwork > .fold-display { font-size: 19cqw; position: relative; z-index: 1; }
+.fold-social-artwork > svg { width: 45%; }
+.fold-social-artwork > .fold-mono { font-size: 3cqw; }
+@container (min-width: 672px) {
+  .fold-brief, .fold-section-intro { grid-template-columns: 1.2fr 1fr; gap: 6cqw; }
+  .fold-type-specimen { grid-template-columns: 1.15fr 1fr; }
+  .fold-type-lead { padding-right: 5cqw; }
+  .fold-type-detail { border-top: 0; border-left: 1px solid #15131133; padding-left: 5cqw; }
+  .fold-rule-heading { grid-template-columns: 1fr 1fr; gap: 5cqw; }
+  .fold-artwork-row { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2cqw; }
+  .fold-artwork-receipt > div { padding: 18px 12px; }
+  .fold-artwork-receipt p { font-size: 10px; }
+  .fold-pack-study-grid { grid-template-columns: 1.15fr 1fr; }
+}
+
 .fold img {
   display: block;
   width: 100%;
@@ -136,16 +209,19 @@
 .fold-demo-reveal.is-in .step {
   animation-play-state: running;
 }
+/* The flap is the corner turned back: the part cut from the sheet, mirrored over the crease, so
+   the corner it leaves open shows the signal and the mark beneath. It unfolds again to loop. */
 @keyframes fold-flap {
   0%, 14% { clip-path: polygon(100% 0, 100% 0, 100% 0); }
-  34%, 52% { clip-path: polygon(100% 0, 58% 0, 100% 42%); }
-  70%, 100% { clip-path: polygon(100% 0, 0% 0, 100% 100%); }
+  34%, 52% { clip-path: polygon(58% 0, 100% 42%, 58% 42%); }
+  70%, 92% { clip-path: polygon(0 0, 100% 100%, 0 100%); }
+  100% { clip-path: polygon(100% 0, 100% 0, 100% 0); }
 }
 @keyframes fold-sheet {
   0%, 14% { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); }
   34%, 52% { clip-path: polygon(0 0, 58% 0, 100% 42%, 100% 100%, 0 100%); }
   70%, 92% { clip-path: polygon(0 0, 0 0, 100% 100%, 100% 100%, 0 100%); }
-  100% { clip-path: polygon(0 0, 0 0, 100% 100%, 100% 100%, 0 100%); }
+  100% { clip-path: polygon(0 0, 100% 0, 100% 100%, 100% 100%, 0 100%); }
 }
 .fold-demo-reveal .step:nth-child(1) { animation-name: fold-step-1; }
 .fold-demo-reveal .step:nth-child(3) { animation-name: fold-step-2; }
@@ -167,10 +243,10 @@
   animation-play-state: running;
 }
 @keyframes fold-settle {
-  0%, 12% { transform: scaleX(1); }
-  30%, 42% { transform: scaleX(0.58); }
-  58% { transform: scaleX(1.05); }
-  72%, 100% { transform: scaleX(1); }
+  0%, 12% { transform: translateY(0); clip-path: inset(0); }
+  30%, 42% { transform: translateY(12%); clip-path: inset(0 0 100% 0); }
+  58% { transform: translateY(4%); clip-path: inset(0); }
+  72%, 100% { transform: translateY(0); clip-path: inset(0); }
 }
 .fold-demo-settle .step:nth-child(1) { animation-name: fold-step-a; }
 .fold-demo-settle .step:nth-child(3) { animation-name: fold-step-b; }
