@@ -23,6 +23,17 @@ export const caseStudies: Record<string, LazyExoticComponent<ComponentType>> = O
   Object.entries(loaders).map(([id, load]) => [id, lazy(() => load().then((c) => ({ default: c })))]),
 )
 
+// The web fonts a case study sets its type in, beyond the site's own. Fetched with it: arriving
+// after it's built, they'd make the browser lay the whole page out a second time.
+const MONO = ['400 1em "IBM Plex Mono"', '500 1em "IBM Plex Mono"']
+const ARCHIVO = ['400 1em Archivo', '700 1em Archivo']
+const fonts: Record<string, string[]> = {
+  fold: ['400 1em Anton', ...MONO],
+  fittrack: [...ARCHIVO, ...MONO],
+  drift: [...ARCHIVO, ...MONO],
+}
+
 export function preloadCaseStudy(id: string) {
   void loaders[id]?.()
+  for (const font of fonts[id] ?? []) document.fonts.load(font).catch(() => {})
 }

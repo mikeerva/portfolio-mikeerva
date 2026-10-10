@@ -28,7 +28,7 @@ export function ProjectView({ project, panelRef, worldRef, onScroll }: Props) {
       <div
         ref={panelRef}
         onScroll={onScroll}
-        className="@container absolute z-0 touch-pan-y select-text overflow-y-auto overflow-x-hidden overscroll-contain rounded-[6px] bg-cream text-neutral-900 opacity-0"
+        className="case-study-panel @container absolute z-0 touch-pan-y select-text overflow-y-auto overflow-x-hidden overscroll-contain rounded-[6px] bg-cream text-neutral-900 opacity-0"
         style={{ pointerEvents: 'none', containerType: 'size' }}
       >
         <ScrollerContext.Provider value={panelRef}>

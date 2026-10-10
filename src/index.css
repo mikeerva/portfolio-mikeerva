@@ -53,6 +53,16 @@
   }
 }
 
+/* An open case study's chapters are laid out only as they near the view. A case study runs to
+   10,000–17,000px; built all at once, the first layout of every chapter froze the opening
+   animation on phones. Each keeps its real height once it has been seen (auto); until then it
+   stands in at about a screen and a half of the panel. Containers like Pulse's pinned 3D stage
+   are divs and are left alone. */
+.case-study-panel > article > :is(section, header, footer) {
+  content-visibility: auto;
+  contain-intrinsic-block-size: auto 150cqh;
+}
+
 @keyframes rise {
   from {
     opacity: 0;

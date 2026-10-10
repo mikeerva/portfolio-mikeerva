@@ -67,6 +67,10 @@ export function useSmoothWheel(ref: RefObject<HTMLElement | null>) {
 //   'pin'   — for a tall section with a sticky inner: 0 when its top reaches the panel's top,
 //             1 when its bottom reaches the panel's bottom
 //   'cross' — 0 as the element enters at the bottom, 1 as it leaves at the top
+// Every tracked element in a panel shares one loop: each frame all of them are measured first
+// and written after, so a scroll costs one layout however many there are. Only those near the
+// view are measured at all: measuring the rest would make the browser lay out chapters it has
+// left unbuilt until they come near (see .case-study-panel in index.css).
 export function useScrollProgress<T extends HTMLElement>(mode: 'pin' | 'cross' = 'cross') {
   const ref = useRef<T>(null)
   const scroller = useContext(ScrollerContext)
@@ -74,28 +78,97 @@ export function useScrollProgress<T extends HTMLElement>(mode: 'pin' | 'cross' =
     const panel = scroller?.current
     const el = ref.current
     if (!panel || !el) return
-    let raf = 0
-    const update = () => {
-      raf = 0
-      const view = panel.clientHeight
-      const top = el.getBoundingClientRect().top - panel.getBoundingClientRect().top
-      const height = el.offsetHeight
-      const p = mode === 'pin' ? -top / Math.max(height - view, 1) : (view - top) / (view + height)
-      el.style.setProperty('--p', Math.min(Math.max(p, 0), 1).toFixed(4))
-    }
-    const onScroll = () => {
-      if (!raf) raf = requestAnimationFrame(update)
-    }
-    update()
-    panel.addEventListener('scroll', onScroll, { passive: true })
-    window.addEventListener('resize', onScroll)
-    return () => {
-      panel.removeEventListener('scroll', onScroll)
-      window.removeEventListener('resize', onScroll)
-      cancelAnimationFrame(raf)
-    }
+    return track(panel, { el, mode, near: false, written: '' })
   }, [scroller, mode])
   return ref
+}
+
+interface Tracked {
+  el: HTMLElement
+  mode: 'pin' | 'cross'
+  near: boolean
+  written: string
+}
+
+interface Loop {
+  items: Set<Tracked>
+  byEl: Map<Element, Tracked>
+  raf: number
+  io: IntersectionObserver
+  schedule: () => void
+  stop: () => void
+}
+
+const loops = new Map<HTMLElement, Loop>()
+
+function loopFor(panel: HTMLElement) {
+  const existing = loops.get(panel)
+  if (existing) return existing
+  const items = new Set<Tracked>()
+  const byEl = new Map<Element, Tracked>()
+  const update = () => {
+    loop.raf = 0
+    const view = panel.clientHeight
+    const top0 = panel.getBoundingClientRect().top
+    const values: [Tracked, string][] = []
+    for (const t of items) {
+      if (!t.near) continue
+      const top = t.el.getBoundingClientRect().top - top0
+      const height = t.el.offsetHeight
+      const p = t.mode === 'pin' ? -top / Math.max(height - view, 1) : (view - top) / (view + height)
+      values.push([t, Math.min(Math.max(p, 0), 1).toFixed(4)])
+    }
+    for (const [t, v] of values) {
+      if (v === t.written) continue
+      t.written = v
+      t.el.style.setProperty('--p', v)
+    }
+  }
+  const schedule = () => {
+    if (!loop.raf) loop.raf = requestAnimationFrame(update)
+  }
+  // Near: within a screen of the panel's view, above or below
+  const io = new IntersectionObserver(
+    (entries) => {
+      for (const e of entries) {
+        const t = byEl.get(e.target)
+        if (t) t.near = e.isIntersecting
+      }
+      schedule()
+    },
+    { root: panel, rootMargin: '100% 0px' },
+  )
+  panel.addEventListener('scroll', schedule, { passive: true })
+  window.addEventListener('resize', schedule)
+  const loop: Loop = {
+    items,
+    byEl,
+    raf: 0,
+    io,
+    schedule,
+    stop: () => {
+      panel.removeEventListener('scroll', schedule)
+      window.removeEventListener('resize', schedule)
+      cancelAnimationFrame(loop.raf)
+      io.disconnect()
+      loops.delete(panel)
+    },
+  }
+  loops.set(panel, loop)
+  return loop
+}
+
+function track(panel: HTMLElement, t: Tracked) {
+  const loop = loopFor(panel)
+  loop.items.add(t)
+  loop.byEl.set(t.el, t)
+  loop.io.observe(t.el)
+  return () => {
+    loop.items.delete(t)
+    loop.byEl.delete(t.el)
+    loop.io.unobserve(t.el)
+    if (!loop.items.size) loop.stop()
+  }
 }
 
 // Marks an element with .is-in once it has come into view (and keeps it), for one-time reveals

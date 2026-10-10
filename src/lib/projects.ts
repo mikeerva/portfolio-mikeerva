@@ -255,6 +255,31 @@ export const OPEN_RIGHT: Slot[] = [
 ]
 // The panel's place in the opening, in the same fractions: [u0, u1, v0, v1]
 const PANEL: [number, number, number, number] = [0.2, 0.88, 0.06, 0.94]
+// Portrait (phones): the screen is short across, so the panel takes more of its height, just
+// clear of the header's back link, and a little more of its width; the masses above and below
+// draw back toward the screen's ends and are smaller, keeping their composition
+const PANEL_PORTRAIT: [number, number, number, number] = [0.15, 0.92, 0.04, 0.96]
+const PORTRAIT_MASS = 0.75
+
+// An open view's slot (index into the left slots, then the right ones) for the screen's
+// orientation. Portrait keeps every slot where it sits relative to the panel's edges: the left
+// side's along the space before the panel, the right's after it, and across the panel's width;
+// so the forms crossing its corners still cross them.
+export function openSlot(index: number, portrait: boolean): Slot {
+  const left = index < OPEN_LEFT.length
+  const slot = left ? OPEN_LEFT[index] : OPEN_RIGHT[index - OPEN_LEFT.length]
+  if (!portrait) return slot
+  const [u, v, r, depth] = slot
+  const [u0, u1, v0, v1] = PANEL
+  const [p0, p1, q0, q1] = PANEL_PORTRAIT
+  const across = (v1 - v0) / 2
+  return [
+    left ? u * (p0 / u0) : 1 - (1 - u) * ((1 - p1) / (1 - u1)),
+    0.5 + (v - 0.5) * ((q1 - q0) / 2 / across),
+    r * PORTRAIT_MASS,
+    depth,
+  ]
+}
 export const PANEL_RADIUS = 6
 // Closing an open panel when its category or Work is left (s); Work's layers exit in 0.4 s
 export const PANEL_LEAVE_S = 0.38
@@ -262,7 +287,7 @@ export const PANEL_LEAVE_S = 0.38
 // The panel on screen (CSS px) for a viewport, and how far it's revealed (clipped open from its
 // centre line) for an entering progress
 export function panelRect(width: number, height: number) {
-  const [u0, u1, v0, v1] = PANEL
+  const [u0, u1, v0, v1] = height > width ? PANEL_PORTRAIT : PANEL
   return height > width
     ? { left: v0 * width, top: u0 * height, width: (v1 - v0) * width, height: (u1 - u0) * height, portrait: true }
     : { left: u0 * width, top: v0 * height, width: (u1 - u0) * width, height: (v1 - v0) * height, portrait: false }

@@ -62,9 +62,12 @@ export function About() {
 
   // The portrait rides the canvas's frame: it rises open with the cut-out the material makes for it
   useEffect(() => {
+    // Only while it moves: once fully open (or closed) it's left alone rather than repainted
+    let last = -1
     object.onAboutFrame = (r) => {
       const el = photo.current
-      if (!el) return
+      if (!el || r === last) return
+      last = r
       el.style.clipPath = `inset(${((1 - r) * 100).toFixed(2)}% 0 0 0 round 6px)`
       el.style.opacity = String(Math.min(r / 0.3, 1))
       el.style.setProperty('--rise', (1 - r).toFixed(4))

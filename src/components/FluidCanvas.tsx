@@ -10,6 +10,7 @@ import {
   type Placement,
   OPEN_LEFT,
   OPEN_RIGHT,
+  openSlot,
   PANEL_LEAVE_S,
   PANEL_RADIUS,
   PANEL_Z,
@@ -109,7 +110,17 @@ void main() { gl_Position = vec4(aPos, 0.0, 1.0); }
 // to the metaball normal, which owns the rim. Near volumes are lit brighter than far ones.
 // uWork is 0 in the Hero, which keeps the plain metaball shading.
 const FRAG = `
+#ifdef GL_OES_standard_derivatives
+#extension GL_OES_standard_derivatives : enable
+#endif
 precision highp float;
+// How much a value changes across one screen pixel: measured directly where the GPU can, so it
+// holds however the field is warped; otherwise from the field's own (unwarped) gradient
+#ifdef GL_OES_standard_derivatives
+#define PER_PX(v, grad) length(vec2(dFdx(v), dFdy(v)))
+#else
+#define PER_PX(v, grad) length(grad)
+#endif
 uniform vec4 uBlobs[${COUNT}];
 uniform vec3 uColor;
 uniform float uUnit;
@@ -183,7 +194,14 @@ void main() {
     gh += e * gi;
     sz += e * b.w;
   }
-  float a = smoothstep(0.98, 1.02, f);
+  // The edge is the field's soft band (0.98–1.02), widened to at least a canvas pixel either
+  // side, measured from the field's slope: drawn below the screen's density and scaled up
+  // (phones), the outline stays smooth instead of stepping. Only ever widened, never narrowed,
+  // so inside the mass, where the slope spikes at each blob's centre, nothing changes.
+  float a = max(smoothstep(0.98, 1.02, f), smoothstep(-1.0, 1.0, (f - 1.0) / max(PER_PX(f, g), 1e-6)));
+  // The near lobes' field over an open panel (below), measured here while every pixel still runs
+  float lobes = ff + min(fb * 0.35, 0.45) * smoothstep(0.15, 0.5, ff);
+  float lobesPx = max(PER_PX(lobes, g), 1e-6);
   if (a <= 0.0) {
     gl_FragColor = vec4(0.0);
     return;
@@ -204,13 +222,12 @@ void main() {
   if (uPanelA > 0.0) {
     float inside = 1.0 - smoothstep(-1.0, 1.0, panelDist(gl_FragCoord.xy));
     // Over the panel only the near lobes' own outline is drawn, so where they cross its edge
-    // they keep their rounded contour
     // they keep their rounded contour. Where a near lobe is already present, the mass behind
     // lends it some of its field, so it swells out of the mass's edge instead of sitting there
     // as a separate disc; on its own, the mass behind never shows over the panel. What it lends
     // is capped, so a large mass right behind the edge can't stretch the lobe into a flat slab.
-    float near = ff + min(fb * 0.35, 0.45) * smoothstep(0.15, 0.5, ff);
-    float behind = 1.0 - smoothstep(0.98, 1.02, near);
+    // Its outline is widened to a pixel the same way as the mass's edge
+    float behind = 1.0 - max(smoothstep(0.98, 1.02, lobes), smoothstep(-1.0, 1.0, (lobes - 1.0) / lobesPx));
     a *= 1.0 - inside * behind * uPanelA;
   }
 
@@ -252,6 +269,8 @@ export function FluidCanvas({ mode }: { mode: FluidMode }) {
     const canvas = canvasRef.current!
     const gl = canvas.getContext('webgl', { antialias: false, alpha: true, premultipliedAlpha: true })
     if (!gl) return
+    // For measuring the outline in screen pixels; the shader falls back without it
+    gl.getExtension('OES_standard_derivatives')
 
     const program = gl.createProgram()!
     try {
@@ -288,7 +307,7 @@ export function FluidCanvas({ mode }: { mode: FluidMode }) {
     // scaled up, so phones start lower, and any device that can't keep up steps down further.
     const touch = window.matchMedia('(pointer: coarse)').matches
     const maxScale = Math.min(window.devicePixelRatio, touch ? 1 : 1.5)
-    const minScale = touch ? 0.5 : 0.75
+    const minScale = 0.75
     let scale = maxScale
     // Cached so the frame never reads layout
     let cw = 1
@@ -333,6 +352,8 @@ export function FluidCanvas({ mode }: { mode: FluidMode }) {
     const lag = new Float32Array(COUNT).fill(object.progress)
     let turn = object.progress
     const out: ObjectFrame = {
+      vw: 1,
+      vh: 1,
       turn,
       sway: 0,
       tilt: 0,
@@ -689,7 +710,7 @@ export function FluidCanvas({ mode }: { mode: FluidMode }) {
         // large uneven masses either side of the opening. The other blobs, once gone, grow back
         // as lobes inside those masses. Every slot keeps its own slow life.
         if (enter > 0 && slotsFor && g >= 0 && g < groups) {
-          const [su, sv, sr, sd] = slotOf[i] < OPEN_LEFT.length ? OPEN_LEFT[slotOf[i]] : OPEN_RIGHT[slotOf[i] - OPEN_LEFT.length]
+          const [su, sv, sr, sd] = openSlot(slotOf[i], portrait)
           const u = su + 0.006 * Math.sin(t * (0.21 + 0.013 * i) + i * 1.7)
           const v = sv + 0.009 * Math.cos(t * (0.17 + 0.011 * i) + i * 2.3)
           const lx = portrait ? v * w : u * w
@@ -715,7 +736,7 @@ export function FluidCanvas({ mode }: { mode: FluidMode }) {
             // Pushes out from inside its side's main body to its own lobe, as internal pressure.
             // It hands over from its fragment's spot while it has no size either side (0.36–0.44),
             // since its position still leaks into whatever it's blended with (e.g. the Hero)
-            const [au, av] = slotOf[i] < OPEN_LEFT.length ? OPEN_LEFT[0] : OPEN_RIGHT[0]
+            const [au, av] = openSlot(slotOf[i] < OPEN_LEFT.length ? 0 : OPEN_LEFT.length, portrait)
             const ax = portrait ? av * w : au * w
             const ay = h - (portrait ? au * h : av * h)
             const grow = ramp(0.6 + ((i * 29) % 9) * 0.012, 0.98, enter)
@@ -828,7 +849,7 @@ export function FluidCanvas({ mode }: { mode: FluidMode }) {
             fragC[g * 2 + 1] = fy
           }
         }
-        Object.assign(out, { turn, sway, tilt, zoom, cx: layout.cx, cy, unit: layout.unit, split, enter })
+        Object.assign(out, { vw: cw, vh: ch, turn, sway, tilt, zoom, cx: layout.cx, cy, unit: layout.unit, split, enter })
         object.onFrame?.(out)
         object.onProjectsFrame?.(out)
       }

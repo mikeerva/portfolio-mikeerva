@@ -24,6 +24,8 @@ export const object = {
   hoverProject: -1,
   // Hero: centre (CSS px) of the link under the pointer, which draws the material toward it
   heroLink: null as { x: number; y: number } | null,
+  // The entered project's panel has finished opening (set by the project layer)
+  panelOpen: false,
   // How far through the open project's case study the reader has scrolled (0..1)
   projectScroll: 0,
   // About's portrait, called every frame with how far it has risen open (0..1, eased)
@@ -36,6 +38,10 @@ export const object = {
 }
 
 export interface ObjectFrame {
+  // The view's size (CSS px), as the canvas measured it: read from here so no frame has to ask
+  // the browser for layout
+  vw: number
+  vh: number
   // Eased progress the mass is currently showing
   turn: number
   sway: number
@@ -51,4 +57,20 @@ export interface ObjectFrame {
   enter: number
   // Each fragment's centre and approximate radius on screen, CSS px: [x, y, r] per project
   fragments: Float32Array
+}
+
+/**
+ * Resolves true once the open project's panel has finished opening, or false if `cancelled`
+ * turns true first. A case study's heavy start (a 3D scene, a particle field) waits for it, so it
+ * doesn't land in the middle of the opening. Outside the project layer it resolves at once.
+ */
+export function afterPanelOpens(cancelled: () => boolean) {
+  return new Promise<boolean>((resolve) => {
+    const check = () => {
+      if (cancelled()) resolve(false)
+      else if (object.panelOpen || !object.onProjectsFrame) resolve(true)
+      else requestAnimationFrame(check)
+    }
+    check()
+  })
 }

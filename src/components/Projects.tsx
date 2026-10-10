@@ -37,9 +37,28 @@ export function Projects({ category, project, onProject }: Props) {
   const fragments = useRef<Float32Array>(new Float32Array(0))
   const explorable = useRef(false)
   const [hovered, setHovered] = useState(-1)
-  // The project the page shows: stays the last entered one while leaving it
-  const [shown, setShown] = useState(project ?? 0)
+  // The project the page shows: none until one is entered, then the last entered one while
+  // leaving it. Building a case study is heavy (a large page, its images), so it never happens
+  // in the background while the mass divides, only once a project is chosen.
+  // Built at once on entering, while the fragment holds still before it tears open
+  const [shown, setShown] = useState<number | null>(project)
   if (project !== null && project !== shown) setShown(project)
+
+  // Once the mass has divided, the category's finished case studies are fetched while nothing
+  // else is happening, so entering one (a tap: phones have no hover to start it) only builds it
+  useEffect(() => {
+    const ids = projects.filter(isLive).map((p) => p.id)
+    let idle = 0
+    const timer = window.setTimeout(() => {
+      const run = () => ids.forEach(preloadCaseStudy)
+      if ('requestIdleCallback' in window) idle = requestIdleCallback(run, { timeout: 2000 })
+      else run()
+    }, 3000)
+    return () => {
+      clearTimeout(timer)
+      if (idle) cancelIdleCallback(idle)
+    }
+  }, [projects])
 
   // Leaving (category closed or Work left): the labels fade and the panel closes before they're
   // removed. Their wrapper is display: contents to keep the layering with the canvas, so it can't.
@@ -54,24 +73,36 @@ export function Projects({ category, project, onProject }: Props) {
     const blank = { left: '', top: '', width: '', height: '', clipPath: '', opacity: '', pointerEvents: '' }
     let written = { ...blank }
     let writtenTo: HTMLDivElement | null = null
-    object.onProjectsFrame = ({ split, enter, fragments: f }) => {
+    // Each label's width (CSS px), kept by an observer, so the frame never has to read layout
+    const widths = new Map<Element, number>()
+    const ro = new ResizeObserver((entries) => entries.forEach((e) => widths.set(e.target, (e.target as HTMLElement).offsetWidth)))
+    // Whether the labels were all hidden last frame, so nothing is rewritten while they stay so
+    let labelsHidden = false
+    object.onProjectsFrame = ({ vw, vh, split, enter, fragments: f }) => {
       fragments.current = f
       const leave = leftAt.current === null ? 1 : 1 - smoothstep(0, PANEL_LEAVE_S * 1000, performance.now() - leftAt.current)
       explorable.current = split >= 1 && enter === 0 && leave === 1
-      const portrait = window.innerHeight > window.innerWidth
+      const portrait = vh > vw
       // Labels arrive once the fragments have parted, and leave as soon as one is entered
       const present = smoothstep(0.72, 1, split) * (1 - smoothstep(0, 0.25, enter)) * leave
-      labelRefs.current.forEach((el, g) => {
+      const skipLabels = present === 0 && labelsHidden
+      labelsHidden = present === 0
+      if (!skipLabels) labelRefs.current.forEach((el, g) => {
         if (!el) return
+        if (!widths.has(el)) {
+          widths.set(el, el.offsetWidth)
+          ro.observe(el)
+        }
+        const width = widths.get(el)!
         const [x, y, r] = [f[g * 3], f[g * 3 + 1], f[g * 3 + 2]]
-        const side = x < window.innerWidth / 2 ? -1 : 1
+        const side = x < vw / 2 ? -1 : 1
         // ...kept on screen when its fragment sits near an edge
-        const edge = 16 + (portrait ? el.offsetWidth / 2 : el.offsetWidth)
+        const edge = 16 + (portrait ? width / 2 : width)
         const lx = portrait
-          ? Math.min(Math.max(x, edge), window.innerWidth - edge)
+          ? Math.min(Math.max(x, edge), vw - edge)
           : side < 0
             ? Math.max(x - r * 0.6, edge)
-            : Math.min(x + r * 0.6, window.innerWidth - edge)
+            : Math.min(x + r * 0.6, vw - edge)
         const ly = portrait ? y + r * 0.9 : y + r * 0.55
         const shift = portrait ? '-50%' : side < 0 ? '-100%' : '0%'
         el.style.transform = `translate3d(${lx}px, ${ly}px, 0) translateX(${shift})`
@@ -84,7 +115,8 @@ export function Projects({ category, project, onProject }: Props) {
       const reveal = panelReveal(enter)
       const panel = panelRef.current
       if (panel) {
-        const r = panelRect(window.innerWidth, window.innerHeight)
+        // The same size the canvas cuts the panel's opening from, so the two always line up
+        const r = panelRect(vw, vh)
         const clip = ((1 - Math.min(reveal, leave)) * 50).toFixed(2)
         if (writtenTo !== panel) {
           writtenTo = panel
@@ -103,13 +135,16 @@ export function Projects({ category, project, onProject }: Props) {
         set('clipPath', r.portrait ? `inset(${clip}% 0 round ${PANEL_RADIUS}px)` : `inset(0 ${clip}% round ${PANEL_RADIUS}px)`)
         set('opacity', String(smoothstep(0, 0.3, reveal) * smoothstep(0, 0.1, leave)))
         set('pointerEvents', reveal > 0.95 && leave === 1 ? 'auto' : 'none')
-      }
+        object.panelOpen = reveal >= 1 && leave === 1
+      } else object.panelOpen = false
       const world = worldRef.current
       if (world) world.style.opacity = String(smoothstep(0.4, 1, reveal) * leave)
     }
     return () => {
       object.onProjectsFrame = null
       object.hoverProject = -1
+      object.panelOpen = false
+      ro.disconnect()
     }
   }, [])
 
@@ -252,7 +287,9 @@ export function Projects({ category, project, onProject }: Props) {
       </div>
 
       {/* The project, in the opening its fragment tears */}
-      <ProjectView key={shown} project={projects[shown]} panelRef={panelRef} worldRef={worldRef} onScroll={onPanelScroll} />
+      {shown !== null && (
+        <ProjectView key={shown} project={projects[shown]} panelRef={panelRef} worldRef={worldRef} onScroll={onPanelScroll} />
+      )}
       <AnimatePresence>
         {project !== null && (
           <motion.button

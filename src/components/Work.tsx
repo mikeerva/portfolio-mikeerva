@@ -154,6 +154,14 @@ export function Work({ selected, project, onSelect, onClose, onProject }: Props)
     let onboardSeen = 1
     // Half the width of "drag to explore", as an angle round the orbit
     let textHalf = 0
+    // Its width (CSS px), kept by an observer as its letters open and close, so the frame never
+    // has to read layout
+    let textWidth = 0
+    let measured: HTMLElement | null = null
+    const ro = new ResizeObserver(([e]) => (textWidth = (e.target as HTMLElement).offsetWidth))
+    // Whether the names were all hidden last frame (the category divided), so nothing is rewritten
+    // while they stay hidden
+    let hidden = false
     // The orbit, fixed to the mass at "drag to explore"'s facet: turned exactly as far as that
     // facet (phi), tilted with the mass, and as visible as the text. The part in front of the mass is
     // drawn above the canvas and the part behind it below, where the mass hides it.
@@ -231,19 +239,34 @@ export function Work({ selected, project, onSelect, onClose, onProject }: Props)
       back.style.opacity = String(alpha)
     }
 
-    object.onFrame = ({ turn, sway, tilt, zoom, cx, cy, unit, split }) => {
-      const portrait = window.innerHeight > window.innerWidth
+    object.onFrame = ({ vw, vh, turn, sway, tilt, zoom, cx, cy, unit, split }) => {
+      const portrait = vh > vw
       if (unit !== lastUnit) {
         // Type is sized against the mass; on narrow screens it takes a larger share of it
         sectionRef.current?.style.setProperty('--type', `${unit * (portrait ? 0.33 : 0.3)}px`)
         lastUnit = unit
       }
       const u = unit * zoom
-      // Read before anything is written this frame, so it costs no extra layout
+      // Once the category has divided every name is gone: hidden once, then left alone
+      const shown = 1 - smoothstep(0.02, 0.35, split)
+      if (shown === 0) {
+        if (!hidden) {
+          hidden = true
+          for (const el of [...frontRefs.current, ...backRefs.current, onboardFront.current, onboardBack.current, orbitFront.current, orbitBack.current])
+            if (el) el.style.opacity = '0'
+        }
+        return
+      }
+      hidden = false
       const textEl = onboardFront.current
-      // Every frame, so the line follows the phrase as its letters open on hover
+      if (textEl !== measured) {
+        if (measured) ro.unobserve(measured)
+        if (textEl) ro.observe(textEl)
+        measured = textEl
+      }
+      // So the line follows the phrase as its letters open on hover
       if (textEl) {
-        const half = textEl.offsetWidth / 2 / unit
+        const half = textWidth / 2 / unit
         textHalf = Math.asin(Math.min(half / (ORBIT_R * perspective(ONBOARD_Z)), 1))
       }
       FACETS.forEach(({ at, atPortrait }, i) => {
@@ -328,6 +351,7 @@ export function Work({ selected, project, onSelect, onClose, onProject }: Props)
     }
     return () => {
       object.onFrame = null
+      ro.disconnect()
     }
   }, [])
 

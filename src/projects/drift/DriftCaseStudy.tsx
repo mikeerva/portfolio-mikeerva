@@ -1,4 +1,5 @@
 import { useContext, useEffect, useRef, useState, type ChangeEvent } from 'react'
+import { afterPanelOpens } from '../../lib/scene'
 import { ScrollerContext } from '../scroll'
 import type { Controls } from './field'
 import { sampleWord } from './letters'
@@ -198,7 +199,20 @@ function DriftRun() {
 
     const ro = new ResizeObserver(([e]) => stage.resize(e.contentRect.width, e.contentRect.height))
     ro.observe(el)
-    const io = new IntersectionObserver(([e]) => stage.setOnScreen(e.isIntersecting), { threshold: 0 })
+    // The field only runs once the panel has opened, so it doesn't compete with the opening
+    let onScreen = false
+    let opened = false
+    void afterPanelOpens(() => !alive).then((ok) => {
+      opened = ok
+      if (ok) stage.setOnScreen(onScreen)
+    })
+    const io = new IntersectionObserver(
+      ([e]) => {
+        onScreen = e.isIntersecting
+        stage.setOnScreen(onScreen && opened)
+      },
+      { threshold: 0 },
+    )
     io.observe(el)
 
     // Pointer events: mouse, pen and touch alike. Touch keeps vertical panning for the page.

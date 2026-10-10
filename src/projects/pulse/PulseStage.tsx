@@ -1,4 +1,5 @@
 import { useContext, useEffect, useRef } from 'react'
+import { afterPanelOpens } from '../../lib/scene'
 import { ScrollerContext } from '../scroll'
 import { explodeOffset, lerp, smooth, stateAt, type StageKey, type StageState } from './timeline'
 
@@ -44,6 +45,9 @@ export function PulseStage({ onReady }: { onReady: (ready: boolean) => void }) {
 }
 
 async function run(el: HTMLDivElement, panel: HTMLDivElement, cancelled: () => boolean) {
+  // Loading and building the scene is heavy (the library, the model, the lighting on the GPU):
+  // it waits until the panel has opened, the static renders standing in meanwhile
+  if (!(await afterPanelOpens(cancelled))) return () => {}
   const [THREE, { GLTFLoader }, { DRACOLoader }, { RoomEnvironment }] = await Promise.all([
     import('three'),
     import('three/addons/loaders/GLTFLoader.js'),
@@ -63,6 +67,9 @@ async function run(el: HTMLDivElement, panel: HTMLDivElement, cancelled: () => b
   renderer.toneMapping = THREE.AgXToneMapping
   renderer.toneMappingExposure = 1.05
   renderer.setClearColor(0x000000, 0)
+  // Checking each shader for errors makes the page wait for the GPU to finish compiling it (about
+  // a second on a phone); only worth it while developing
+  renderer.debug.checkShaderErrors = import.meta.env.DEV
   el.appendChild(renderer.domElement)
 
   const scene = new THREE.Scene()
@@ -229,6 +236,9 @@ async function run(el: HTMLDivElement, panel: HTMLDivElement, cancelled: () => b
     list = sections()
     wake()
   })
+  // The materials' shaders compile in parallel, off the page's thread, before the first frame
+  // needs them, instead of all at once inside it
+  await renderer.compileAsync(scene, camera).catch(() => {})
   ro.observe(el)
   panel.addEventListener('scroll', wake, { passive: true })
   panel.addEventListener('pointermove', onPointer, { passive: true })

@@ -928,7 +928,12 @@ function Social() {
       if (!f || !s) return
       // How far the section has risen past the top of the panel: the sticky stage holds the phone
       // in place over this distance, and the feed travels through the middle of it
-      const scrolled = panel.getBoundingClientRect().top - t.getBoundingClientRect().top
+      const box = t.getBoundingClientRect()
+      const view = panel.getBoundingClientRect()
+      // Nowhere near the view: nothing to move, and measuring the posts would only make the
+      // browser lay the section out early
+      if (box.bottom < view.top - view.height || box.top > view.bottom + view.height) return
+      const scrolled = view.top - box.top
       const y = Math.min(Math.max(scrolled - hold, 0), journey)
       f.style.transform = `translate3d(0, ${-y}px, 0)`
       // The active post: the one under the middle of the screen
