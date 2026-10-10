@@ -133,6 +133,16 @@ float panelDist(vec2 p) {
   vec2 q = abs(p - c) - (uPanel.zw - uPanel.xy) * 0.5 + uPanelR;
   return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - uPanelR;
 }
+// Distance to a field's outline (v = 1), given how much it changes across a pixel (L). Outside
+// it's the plain first-order estimate. Inside, the field is measured as v^(1/(2 uSharp)), which
+// for a lone blob is its radius over the distance to its centre: that changes evenly all the way
+// in, so the distance stays exact. The field's own estimate collapses toward each blob's centre,
+// where its slope soars, and drew a dim ring there. The two agree at the outline.
+float outline(float v, float L) {
+  if (v <= 1.0) return (v - 1.0) / L;
+  float h = 0.5 / uSharp;
+  return (pow(v, h) - 1.0) * v / (h * L);
+}
 void main() {
   vec2 p = gl_FragCoord.xy;
   // How the field's coordinates change across a screen pixel: the identity, unless warped below
@@ -208,7 +218,7 @@ void main() {
   // coarse this pass is. The field's change across one pixel is its gradient carried through the
   // warp, worked out here rather than read from the GPU's derivatives, which not every phone has.
   float perPx = max(length(g * J), 1e-6);
-  float sd = (f - 1.0) / perPx;
+  float sd = outline(f, perPx);
   // The near lobes' field over an open panel (below), with the same measure
   float lobes = ff + min(fb * 0.35, 0.45) * smoothstep(0.15, 0.5, ff);
   // Far outside: nothing to shade. Just outside, the colour is still worked out, so the edge
@@ -238,7 +248,7 @@ void main() {
     // is capped, so a large mass right behind the edge can't stretch the lobe into a flat slab.
     // Kept: outside the panel's rectangle, or within a near lobe; the opening fades in and out
     // with uPanelA
-    float keep = max(panelDist(gl_FragCoord.xy), (lobes - 1.0) / perPx);
+    float keep = max(panelDist(gl_FragCoord.xy), outline(lobes, perPx));
     sd = min(sd, mix(EDGE, clamp(keep, -EDGE, EDGE), uPanelA));
   }
 
