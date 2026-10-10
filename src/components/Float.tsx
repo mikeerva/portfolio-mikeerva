@@ -2,12 +2,12 @@ import { useEffect, useRef, type ReactNode } from 'react'
 
 // A Hero link adrift like the Work names on their mass: a slow rise and fall and a slight turn in
 // perspective, at the mass's own rates, its shadow rising and settling with it. Motionless when
-// motion is reduced.
+// motion is reduced, and on touch screens, where it would only add work for the phone's GPU.
 export function Float({ children, phase = 0 }: { children: ReactNode; phase?: number }) {
   const ref = useRef<HTMLSpanElement>(null)
 
   useEffect(() => {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches || matchMedia('(pointer: coarse)').matches) return
     const start = performance.now()
     let raf = 0
     const tick = (now: number) => {

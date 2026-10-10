@@ -162,6 +162,9 @@ export function Work({ selected, project, onSelect, onClose, onProject }: Props)
     // Whether the names were all hidden last frame (the category divided), so nothing is rewritten
     // while they stay hidden
     let hidden = false
+    // Touch screens keep the names' shadow at its resting height: lifting it with the turn
+    // repaints every name's shadow on every frame of it
+    const liftShadows = !matchMedia('(pointer: coarse)').matches
     // The orbit, fixed to the mass at "drag to explore"'s facet: turned exactly as far as that
     // facet (phi), tilted with the mass, and as visible as the text. The part in front of the mass is
     // drawn above the canvas and the part behind it below, where the mass hides it.
@@ -313,9 +316,11 @@ export function Work({ selected, project, onSelect, onClose, onProject }: Props)
         front.style.opacity = String(alpha * inFront)
         back.style.opacity = String(alpha * (1 - inFront))
         // How far it has risen off the mass, for the shadow it casts there
-        const risen = (lift / FRONT_LIFT).toFixed(2)
-        front.style.setProperty('--lift', risen)
-        back.style.setProperty('--lift', risen)
+        if (liftShadows) {
+          const risen = (lift / FRONT_LIFT).toFixed(2)
+          front.style.setProperty('--lift', risen)
+          back.style.setProperty('--lift', risen)
+        }
         if (onboardF && onboardB) {
           // "Drag to explore" turns rigidly with the orbit about the mass's axis: same angle, tilt
           // and projection, so the two keep their places relative to each other throughout. It is
@@ -342,9 +347,11 @@ export function Work({ selected, project, onSelect, onClose, onProject }: Props)
           onboardF.style.opacity = String(a * oFront)
           onboardB.style.opacity = String(a * (1 - oFront))
           // Standing out on the orbit, it's fully risen while it faces the viewer
-          const oRisen = Math.max(Math.cos(oLean), 0).toFixed(2)
-          onboardF.style.setProperty('--lift', oRisen)
-          onboardB.style.setProperty('--lift', oRisen)
+          if (liftShadows) {
+            const oRisen = Math.max(Math.cos(oLean), 0).toFixed(2)
+            onboardF.style.setProperty('--lift', oRisen)
+            onboardB.style.setProperty('--lift', oRisen)
+          }
           drawOrbit(phi, tilt, cx, cy, u, a)
         }
       })

@@ -188,14 +188,18 @@ void main() {
 
     // A rounded cap with no rim, so blending caps never draws a seam. Never zero-sized:
     // Work-only blobs have no radius in the Hero, and dividing by it would poison every pixel.
-    float R = max(b.z * 1.25, 1.0);
-    float h = b.w * uUnit + R - d2 / R;
-    vec2 gi = -2.0 * d / R;
-    // Clamped so it can neither overflow nor vanish, whatever the frame's sizes
-    float e = uWork > 0.0 ? exp(clamp((h - top) / k, -60.0, 0.0)) : 0.0;
-    se += e;
-    gh += e * gi;
-    sz += e * b.w;
+    // Skipped outright when uWork is 0 (the Hero): a real branch, so the GPU doesn't work out the
+    // exponential only to discard it.
+    if (uWork > 0.0) {
+      float R = max(b.z * 1.25, 1.0);
+      float h = b.w * uUnit + R - d2 / R;
+      vec2 gi = -2.0 * d / R;
+      // Clamped so it can neither overflow nor vanish, whatever the frame's sizes
+      float e = exp(clamp((h - top) / k, -60.0, 0.0));
+      se += e;
+      gh += e * gi;
+      sz += e * b.w;
+    }
   }
   // This pass runs at a reduced resolution and doesn't draw the outline itself: it writes how far
   // each pixel is from it (in this pass's pixels, positive inside), and a second pass at the
@@ -256,8 +260,12 @@ precision highp float;
 uniform sampler2D uField;
 uniform vec2 uOut;
 uniform float uRatio;
+// The share of the texture the field pass drew this frame (it may draw a smaller part of it), and
+// the furthest it can be read before taking in pixels it didn't draw
+uniform vec2 uUse;
+uniform vec2 uEdge;
 void main() {
-  vec4 t = texture2D(uField, gl_FragCoord.xy / uOut);
+  vec4 t = texture2D(uField, min(gl_FragCoord.xy / uOut * uUse, uEdge));
   // Decoded from the field pass's alpha: 2 x EDGE field pixels across its range
   float sd = (t.a - 0.5) * 8.0 * uRatio;
   float a = smoothstep(-0.75, 0.75, sd);
@@ -333,6 +341,8 @@ export function FluidCanvas({ mode }: { mode: FluidMode }) {
     gl.uniform1i(gl.getUniformLocation(compose, 'uField'), 0)
     const uOut = gl.getUniformLocation(compose, 'uOut')
     const uRatio = gl.getUniformLocation(compose, 'uRatio')
+    const uUse = gl.getUniformLocation(compose, 'uUse')
+    const uEdge = gl.getUniformLocation(compose, 'uEdge')
     gl.useProgram(program)
 
     const uBlobs = gl.getUniformLocation(program, 'uBlobs')
@@ -554,9 +564,12 @@ highp ${hp ? `${hp.precision} bits, 2^${hp.rangeMax}` : 'none'} · mediump ${mp 
       last = now
       clock += dt * speed
       const t = clock
-      // The field pass's pixels: everything placed on it is in these
-      const w = fw
-      const h = fh
+      // The field pass's pixels: everything placed on it is in these. On touch screens, while
+      // something is on its way somewhere, it draws into 70% of its texture: the outline is drawn
+      // at the screen's resolution regardless, and the softer shading doesn't show in motion
+      const share = touch && !still ? 0.7 : 1
+      const w = Math.max(Math.round(fw * share), 1)
+      const h = Math.max(Math.round(fh * share), 1)
       const m = Math.max(w, h)
       const current = modeRef.current
       const portrait = ch > cw
@@ -956,14 +969,16 @@ highp ${hp ? `${hp.precision} bits, 2^${hp.rangeMax}` : 'none'} · mediump ${mp 
       drawn++
       if (!(object.covered || object.menuCovered) || drawn < 4) {
         gl.bindFramebuffer(gl.FRAMEBUFFER, fieldFb)
-        gl.viewport(0, 0, fw, fh)
+        gl.viewport(0, 0, w, h)
         gl.drawArrays(gl.TRIANGLES, 0, 3)
         gl.bindFramebuffer(gl.FRAMEBUFFER, null)
         gl.viewport(0, 0, canvas.width, canvas.height)
         gl.useProgram(compose)
         gl.bindTexture(gl.TEXTURE_2D, fieldTex)
         gl.uniform2f(uOut, canvas.width, canvas.height)
-        gl.uniform1f(uRatio, canvas.width / fw)
+        gl.uniform1f(uRatio, canvas.width / w)
+        gl.uniform2f(uUse, w / fw, h / fh)
+        gl.uniform2f(uEdge, (w - 0.5) / fw, (h - 0.5) / fh)
         gl.drawArrays(gl.TRIANGLES, 0, 3)
       }
       if (debug) {

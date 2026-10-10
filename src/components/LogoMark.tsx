@@ -40,6 +40,24 @@ const variants = (delay: number): Variants => ({
   },
 })
 
+// Touch screens: each form simply fades in and out, with the same stagger. Tracing the outline
+// repaints the mark and its drop shadow on every frame of it, as the view changes around it.
+const fades = (delay: number): Variants => ({
+  hidden: (i: number) => ({
+    pathLength: 1,
+    fillOpacity: 0,
+    strokeOpacity: 0,
+    transition: { fillOpacity: { duration: 0.25, delay: (PATHS.length - 1 - i) * STAGGER * 0.5 } },
+  }),
+  shown: (i: number) => ({
+    pathLength: 1,
+    fillOpacity: 1,
+    strokeOpacity: 0,
+    transition: { fillOpacity: { duration: 0.45, ease, delay: delay + i * STAGGER } },
+  }),
+})
+const touch = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches
+
 interface Props {
   className?: string
   // true/false: drawn in / out. 'inherit': follows the `hidden` / `shown` variant of a motion ancestor
@@ -63,7 +81,7 @@ const TURN = 0.4
 
 /** The brand mark: two interlocking forms. Sized by `className`, coloured by `currentColor`. */
 export function LogoMark({ className = '', reveal, delay = 0, stroke = 8, drift = false }: Props) {
-  const v = variants(delay)
+  const v = touch ? fades(delay) : variants(delay)
   const forms = useRef<(SVGGElement | null)[]>([])
 
   useEffect(() => {
