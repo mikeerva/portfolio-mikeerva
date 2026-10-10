@@ -2,7 +2,7 @@
 // art-directed worlds: each category has its own constellation, and every project its own
 // stable shape. Nothing here assumes a project count; it comes from the project data.
 import { config, type CategoryId } from '../config'
-import type { Vec3 } from './objectStates'
+import { objectLayout, perspective, type Vec3 } from './objectStates'
 
 // The mass has 28 blobs to share out, so beyond this fragments would become too thin to read
 export const MAX_PROJECTS = 9
@@ -85,9 +85,16 @@ export interface Placement {
   weight: number
 }
 
-// Where a category's n fragments settle. Portrait screens turn the composition a quarter, so it
-// runs top to bottom.
-export function constellation(category: CategoryId, n: number, portrait: boolean): Placement[] {
+// Where a category's n fragments settle. On a portrait screen (a phone) there's no room for the
+// composition with a label under each fragment: the fragments step down the screen instead, one
+// row each, alternating sides, and each label sits beside its fragment on the other side (see
+// Projects). `view` is the screen's size (CSS px), which a portrait layout is fitted to.
+export function constellation(
+  category: CategoryId,
+  n: number,
+  portrait: boolean,
+  view?: { width: number; height: number },
+): Placement[] {
   const { points, field } = WORLDS[category]
   const chosen = points.slice(0, Math.min(n, MAX_PROJECTS, points.length))
   if (chosen.length === 0) return []
@@ -99,6 +106,30 @@ export function constellation(category: CategoryId, n: number, portrait: boolean
   const spread = chosen.length === 1 ? 0 : Math.min(field[0] / ex, field[1] / ey, 1.6)
   // Fewer projects, stronger individual fragments
   const room = Math.min(Math.max(Math.sqrt(4 / chosen.length), 0.78), 1.3)
+  if (portrait && view) {
+    const { cx, cy, unit } = objectLayout(view.width, view.height)
+    // Rows from below the header's back link to the bottom of the screen
+    const top = view.height * PORTRAIT_ROWS[0]
+    const rowH = (view.height * PORTRAIT_ROWS[1] - top) / chosen.length
+    // The category's heaviest body opens on the side it leans to in the composition
+    const first = chosen[0][0] - cx0(chosen) >= 0 ? 1 : -1
+    // A fragment spans about 1.55 of its size in object units; each keeps inside its row and its
+    // half of the screen, larger or smaller by its weight within that
+    const cap = Math.min(rowH * 0.8, view.width * 0.38) / (1.55 * unit)
+    const heaviest = Math.max(...chosen.map((p) => p[3]))
+    return chosen.map(([, , z, weight], k) => {
+      const side = k % 2 === 0 ? first : -first
+      const px = view.width * (0.5 + side * PORTRAIT_SIDE)
+      const py = top + rowH * (k + 0.5)
+      // Placed where it should appear, whatever its depth draws it nearer or further
+      const p = perspective(z)
+      return {
+        pos: [(px - cx) / (unit * p), (cy - py) / (unit * p), z],
+        size: (Math.min(weight * room, cap * (0.82 + (0.18 * weight) / heaviest)) / p),
+        weight,
+      }
+    })
+  }
   return chosen.map(([x, y, z, weight]) => {
     const lx = (x - cx) * spread
     const ly = (y - cy) * spread
@@ -109,6 +140,12 @@ export function constellation(category: CategoryId, n: number, portrait: boolean
     }
   })
 }
+
+// Portrait rows: where they start and end down the screen (fractions of its height), and how far
+// a fragment's centre sits from the middle (fraction of its width)
+const PORTRAIT_ROWS = [0.19, 0.97]
+const PORTRAIT_SIDE = 0.25
+const cx0 = (points: Point[]) => points.reduce((s, p) => s + p[0], 0) / points.length
 
 // A small seeded generator, so every project's shape is the same on every visit
 function seeded(text: string) {

@@ -22,8 +22,6 @@ export const object = {
   // The project being entered (index), or -1; and the fragment under the pointer, or -1
   focus: -1,
   hoverProject: -1,
-  // Hero: centre (CSS px) of the link under the pointer, which draws the material toward it
-  heroLink: null as { x: number; y: number } | null,
   // The entered project's panel has finished opening (set by the project layer)
   panelOpen: false,
   // How far through the open project's case study the reader has scrolled (0..1)

@@ -1,11 +1,9 @@
 import { useEffect, useRef, type ReactNode } from 'react'
-import { object } from '../lib/scene'
 
 // A Hero link adrift like the Work names on their mass: a slow rise and fall and a slight turn in
-// perspective, at the mass's own rates, its shadow rising and settling with it. While hovered it
-// tells the canvas where it is, so the material swells toward it (unless `still`: no response to
-// the pointer). Motionless when motion is reduced.
-export function Float({ children, phase = 0, still = false }: { children: ReactNode; phase?: number; still?: boolean }) {
+// perspective, at the mass's own rates, its shadow rising and settling with it. Motionless when
+// motion is reduced.
+export function Float({ children, phase = 0 }: { children: ReactNode; phase?: number }) {
   const ref = useRef<HTMLSpanElement>(null)
 
   useEffect(() => {
@@ -26,20 +24,8 @@ export function Float({ children, phase = 0, still = false }: { children: ReactN
     return () => cancelAnimationFrame(raf)
   }, [phase])
 
-  useEffect(() => () => void (object.heroLink = null), [])
-
-  const enter = () => {
-    const r = ref.current?.getBoundingClientRect()
-    if (r) object.heroLink = { x: r.left + r.width / 2, y: r.top + r.height / 2 }
-  }
-
   return (
-    <span
-      ref={ref}
-      className="inline-block will-change-transform"
-      onPointerEnter={still ? undefined : enter}
-      onPointerLeave={still ? undefined : () => (object.heroLink = null)}
-    >
+    <span ref={ref} className="inline-block will-change-transform">
       {children}
     </span>
   )

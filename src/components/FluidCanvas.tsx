@@ -110,17 +110,7 @@ void main() { gl_Position = vec4(aPos, 0.0, 1.0); }
 // to the metaball normal, which owns the rim. Near volumes are lit brighter than far ones.
 // uWork is 0 in the Hero, which keeps the plain metaball shading.
 const FRAG = `
-#ifdef GL_OES_standard_derivatives
-#extension GL_OES_standard_derivatives : enable
-#endif
 precision highp float;
-// How much a value changes across one screen pixel: measured directly where the GPU can, so it
-// holds however the field is warped; otherwise from the field's own (unwarped) gradient
-#ifdef GL_OES_standard_derivatives
-#define PER_PX(v, grad) length(vec2(dFdx(v), dFdy(v)))
-#else
-#define PER_PX(v, grad) length(grad)
-#endif
 uniform vec4 uBlobs[${COUNT}];
 uniform vec3 uColor;
 uniform float uUnit;
@@ -143,6 +133,8 @@ float panelDist(vec2 p) {
 }
 void main() {
   vec2 p = gl_FragCoord.xy;
+  // How the field's coordinates change across a screen pixel: the identity, unless warped below
+  mat2 J = mat2(1.0);
   // Around the panel's edges the material is warped by slow, uneven, non-repeating distortion,
   // so where it meets the panel its contour is irregular rather than made of round blob edges.
   // Elsewhere nothing changes.
@@ -152,11 +144,20 @@ void main() {
     float zone = uPanelA > 0.0 ? (1.0 - smoothstep(uUnit * 0.15, uUnit * 0.75, abs(panelDist(p)))) * uPanelA : 0.0;
     zone = max(zone, uFrag);
     vec2 s = p / uUnit;
-    vec2 wv = vec2(
-      sin(s.y * 2.3 + s.x * 0.7 + uTime * 0.11) + 0.55 * sin(s.y * 5.1 - s.x * 3.7 - uTime * 0.07) + 0.3 * sin(s.x * 8.3 + s.y * 6.1),
-      sin(s.x * 2.9 - s.y * 1.1 - uTime * 0.09) + 0.55 * sin(s.x * 4.6 + s.y * 4.2 + uTime * 0.13) + 0.3 * sin(s.y * 9.7 - s.x * 5.3)
-    );
+    float A = s.y * 2.3 + s.x * 0.7 + uTime * 0.11;
+    float B = s.y * 5.1 - s.x * 3.7 - uTime * 0.07;
+    float C = s.x * 8.3 + s.y * 6.1;
+    float D = s.x * 2.9 - s.y * 1.1 - uTime * 0.09;
+    float E = s.x * 4.6 + s.y * 4.2 + uTime * 0.13;
+    float G = s.y * 9.7 - s.x * 5.3;
+    vec2 wv = vec2(sin(A) + 0.55 * sin(B) + 0.3 * sin(C), sin(D) + 0.55 * sin(E) + 0.3 * sin(G));
     p += wv * uUnit * 0.085 * zone;
+    // ...and its slope, so the outline can be measured in screen pixels however it's warped
+    float cA = cos(A), cB = cos(B), cC = cos(C), cD = cos(D), cE = cos(E), cG = cos(G);
+    J += 0.085 * zone * mat2(
+      0.7 * cA - 2.035 * cB + 2.49 * cC, 2.9 * cD + 2.53 * cE - 1.59 * cG,
+      2.3 * cA + 2.805 * cB + 1.83 * cC, -1.1 * cD + 2.31 * cE + 2.91 * cG
+    );
   }
   float f = 0.0;
   float ff = 0.0;
@@ -198,10 +199,14 @@ void main() {
   // side, measured from the field's slope: drawn below the screen's density and scaled up
   // (phones), the outline stays smooth instead of stepping. Only ever widened, never narrowed,
   // so inside the mass, where the slope spikes at each blob's centre, nothing changes.
-  float a = max(smoothstep(0.98, 1.02, f), smoothstep(-1.0, 1.0, (f - 1.0) / max(PER_PX(f, g), 1e-6)));
-  // The near lobes' field over an open panel (below), measured here while every pixel still runs
+  // The field's change across one screen pixel: its gradient carried through the warp. Worked
+  // out here rather than read from the GPU's screen-space derivatives, which not every phone
+  // provides; without them a warped outline steps.
+  float perPx = max(length(g * J), 1e-6);
+  float a = max(smoothstep(0.98, 1.02, f), smoothstep(-1.0, 1.0, (f - 1.0) / perPx));
+  // The near lobes' field over an open panel (below), with the same measure
   float lobes = ff + min(fb * 0.35, 0.45) * smoothstep(0.15, 0.5, ff);
-  float lobesPx = max(PER_PX(lobes, g), 1e-6);
+  float lobesPx = perPx;
   if (a <= 0.0) {
     gl_FragColor = vec4(0.0);
     return;
@@ -269,8 +274,6 @@ export function FluidCanvas({ mode }: { mode: FluidMode }) {
     const canvas = canvasRef.current!
     const gl = canvas.getContext('webgl', { antialias: false, alpha: true, premultipliedAlpha: true })
     if (!gl) return
-    // For measuring the outline in screen pixels; the shader falls back without it
-    gl.getExtension('OES_standard_derivatives')
 
     const program = gl.createProgram()!
     try {
@@ -390,39 +393,14 @@ export function FluidCanvas({ mode }: { mode: FluidMode }) {
     let settled = 0
     // Each blob's position on screen this frame (device px; x, y, radius), for the fragments' extents
     const screen = new Float32Array(COUNT * 3)
-    // Hero: the pointer (CSS px) builds pressure in the material near it, which swells and leans
-    // toward it, then eases back once it moves on. Touch only presses while touching.
-    const pointer = { x: 0, y: 0, in: false }
-    const heroPress = new Float32Array(COUNT)
-    let pressX = 0
-    let pressY = 0
-    let pressSnap = true
     // For each Work-only blob, the shared volume it sinks into in the Hero
     const hostOf = new Int8Array(COUNT).fill(-1)
-    let linkPull = 0
     // About: time since it was entered and since it was left (s), and how far the portrait has
     // risen open (0..1, linear)
     let wasAbout = modeRef.current === 'about'
     let aboutClock = wasAbout ? 10 : 0
     let leaveClock = 10
     let portraitOpen = wasAbout ? 1 : 0
-    const onPointer = (e: PointerEvent) => {
-      pointer.x = e.clientX
-      pointer.y = e.clientY
-      pointer.in = e.pointerType !== 'touch' || e.buttons > 0
-    }
-    const onTouchEnd = (e: PointerEvent) => {
-      if (e.pointerType === 'touch') pointer.in = false
-    }
-    // Leaving the window (no element to move on to)
-    const onPointerOut = (e: PointerEvent) => {
-      if (!e.relatedTarget) pointer.in = false
-    }
-    window.addEventListener('pointermove', onPointer)
-    window.addEventListener('pointerdown', onPointer)
-    window.addEventListener('pointerup', onTouchEnd)
-    window.addEventListener('pointercancel', onTouchEnd)
-    document.addEventListener('pointerout', onPointerOut)
     // The category being divided, and each blob's place in its project's own shape
     // ([x, y, z, radius], fragment units before its size)
     let divided: CategoryId | null = null
@@ -526,7 +504,7 @@ export function FluidCanvas({ mode }: { mode: FluidMode }) {
           // each taking a share of the mass by its weight and becoming its project's own shape
           divided = object.category
           groups = Math.min(object.projects, MAX_PROJECTS)
-          const placed = constellation(divided, groups, portrait)
+          const placed = constellation(divided, groups, portrait, { width: cw, height: ch })
           const points: [number, number][] = []
           for (let i = 0; i < COUNT; i++) points.push([base[i * 4], base[i * 4 + 1]])
           assignBlobs(points, placed.map((p) => p.pos), shareBlobs(COUNT, placed), groupOf)
@@ -551,7 +529,7 @@ export function FluidCanvas({ mode }: { mode: FluidMode }) {
       }
       enter = Math.min(1, Math.max(0, enter + ((object.open && object.focus >= 0 && split >= 1 ? dt : -dt) / ENTER_S)))
       if (enter === 0) slotsFor = false
-      if (divided) placements = constellation(divided, groups, portrait)
+      if (divided) placements = constellation(divided, groups, portrait, { width: cw, height: ch })
       const worldIndex = config.categories.findIndex((c) => c.id === divided)
       // The open view on screen (device px): screen axes for layout fractions, and the panel
       const long = portrait ? h : w
@@ -578,23 +556,6 @@ export function FluidCanvas({ mode }: { mode: FluidMode }) {
       // The other fragments recede into the dark and are gone before their blobs regrow as lobes
       const gone = ramp(0, 0.36, enter)
 
-      // The pressure point trails the pointer a little, so it moves through the material softly.
-      // Over a Hero link it settles on the link instead, and the material nearest it draws toward
-      // it harder.
-      const link = current === 'home' ? object.heroLink : null
-      linkPull += ((link ? 1 : 0) - linkPull) * (1 - Math.exp(-dt / 0.9))
-      const pressing = pointer.in || !!link
-      const gx = (link ? link.x : pointer.x) * k
-      const gy = h - (link ? link.y : pointer.y) * k
-      if (pressSnap && pressing) {
-        pressX = gx
-        pressY = gy
-        pressSnap = false
-      }
-      const follow = 1 - Math.exp(-dt / 0.7)
-      pressX += (gx - pressX) * follow
-      pressY += (gy - pressY) * follow
-
       let workShare = 0
       for (let i = 0; i < COUNT; i++) {
         const ph = i * 1.7
@@ -603,24 +564,8 @@ export function FluidCanvas({ mode }: { mode: FluidMode }) {
 
         let hx = (bx + Math.sin(t * (0.13 + (i % 5) * 0.03) + ph) * 0.05) * w
         let hy = (1 - by - Math.cos(t * (0.11 + (i % 4) * 0.035) + ph * 1.3) * 0.06) * h
-        let hr = br * (1 + Math.sin(t * 0.4 + ph) * 0.1) * m
-        if (br > 0 && speed === 1) {
-          // Builds slowly and releases more slowly still; the nearer the pointer to a volume, the
-          // more it swells and leans toward it, so the outline bulges where the pointer is.
-          // Measured from where the volume rests, so its own lean never feeds back into it, and the
-          // lean fades out toward its centre, so it never flips as the pointer crosses it.
-          const dx = pressX - hx
-          const dy = pressY - hy
-          const d = Math.hypot(dx, dy) || 1
-          const near = pressing ? 1 - ramp(hr * 0.2, hr + m * (0.25 - 0.08 * linkPull), d) : 0
-          const tau = near > heroPress[i] ? 1.4 : 2.2
-          heroPress[i] += (near - heroPress[i]) * (1 - Math.exp(-dt / tau))
-          const press = heroPress[i] * heroPress[i] * (3 - 2 * heroPress[i]) * (1 + 0.6 * linkPull)
-          const lean = m * 0.014 * press * ramp(0, hr, d)
-          hx += (dx / d) * lean
-          hy += (dy / d) * lean
-          hr += m * 0.015 * press
-        }
+        // The Hero's material drifts on its own; it doesn't respond to the pointer
+        const hr = br * (1 + Math.sin(t * 0.4 + ph) * 0.1) * m
 
         let ox = base[i * 4]
         let oy = base[i * 4 + 1]
@@ -902,11 +847,6 @@ export function FluidCanvas({ mode }: { mode: FluidMode }) {
     return () => {
       cancelAnimationFrame(raf)
       ro.disconnect()
-      window.removeEventListener('pointermove', onPointer)
-      window.removeEventListener('pointerdown', onPointer)
-      window.removeEventListener('pointerup', onTouchEnd)
-      window.removeEventListener('pointercancel', onTouchEnd)
-      document.removeEventListener('pointerout', onPointerOut)
       gl.deleteBuffer(buffer)
       gl.deleteProgram(program)
     }

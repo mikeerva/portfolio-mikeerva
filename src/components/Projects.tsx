@@ -96,17 +96,24 @@ export function Projects({ category, project, onProject }: Props) {
         const width = widths.get(el)!
         const [x, y, r] = [f[g * 3], f[g * 3 + 1], f[g * 3 + 2]]
         const side = x < vw / 2 ? -1 : 1
-        // ...kept on screen when its fragment sits near an edge
-        const edge = 16 + (portrait ? width / 2 : width)
-        const lx = portrait
-          ? Math.min(Math.max(x, edge), vw - edge)
-          : side < 0
-            ? Math.max(x - r * 0.6, edge)
-            : Math.min(x + r * 0.6, vw - edge)
-        const ly = portrait ? y + r * 0.9 : y + r * 0.55
-        const shift = portrait ? '-50%' : side < 0 ? '-100%' : '0%'
-        el.style.transform = `translate3d(${lx}px, ${ly}px, 0) translateX(${shift})`
-        el.style.textAlign = portrait ? 'center' : side < 0 ? 'right' : 'left'
+        let lx: number
+        let ly: number
+        let shift: string
+        if (portrait) {
+          // Phones: beside its fragment, in the other half of the screen (the fragments alternate
+          // sides down the screen), centred on it and kept on screen. The fragment's measured
+          // radius stops short of its outermost lobes, so the gap is taken a little beyond it.
+          lx = side < 0 ? Math.min(Math.max(x + r * 1.2 + 8, vw * 0.46), vw - 16 - width) : Math.max(Math.min(x - r * 1.2 - 8, vw * 0.54), 16 + width)
+          ly = y
+          shift = `${side < 0 ? '0%' : '-100%'}, -50%`
+        } else {
+          // ...kept on screen when its fragment sits near an edge
+          lx = side < 0 ? Math.max(x - r * 0.6, 16 + width) : Math.min(x + r * 0.6, vw - 16 - width)
+          ly = y + r * 0.55
+          shift = `${side < 0 ? '-100%' : '0%'}, 0`
+        }
+        el.style.transform = `translate3d(${lx}px, ${ly}px, 0) translate(${shift})`
+        el.style.textAlign = portrait ? (side < 0 ? 'left' : 'right') : side < 0 ? 'right' : 'left'
         el.style.opacity = String(present)
       })
       // The panel opens from its centre line once the fragment has torn wide enough, and closes
@@ -243,7 +250,8 @@ export function Projects({ category, project, onProject }: Props) {
               labelRefs.current[g] = el
             }}
             aria-hidden
-            className="lift-shadow pointer-events-none absolute left-0 top-0 opacity-0 will-change-transform"
+            // On phones a label shares its row with its fragment: half the screen at most
+            className="lift-shadow pointer-events-none absolute left-0 top-0 opacity-0 will-change-transform portrait:w-max portrait:max-w-[50vw]"
           >
             <div
               className="transition-opacity duration-500"
@@ -258,13 +266,15 @@ export function Projects({ category, project, onProject }: Props) {
               >
                 {name}
               </p>
-              <p className="mt-[0.6em] whitespace-nowrap text-phi-xs font-light text-white/50">{projects[g].discipline ?? categoryName}</p>
+              <p className="mt-[0.6em] whitespace-nowrap text-phi-xs font-light text-white/50 portrait:whitespace-normal">
+                {projects[g].discipline ?? categoryName}
+              </p>
               {!isLive(projects[g]) && (
                 <p
                   className={`mt-[1.1em] whitespace-nowrap text-phi-xs font-light uppercase transition-[letter-spacing,color] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] ${nudged === g ? 'text-glow' : hovered === g ? 'text-white/70' : 'text-white/40'}`}
                   style={{ letterSpacing: nudged === g ? '0.45em' : '0.35em' }}
                 >
-                  Case study —{' '}
+                  <span className="portrait:hidden">Case study — </span>
                   <span className={`font-medium transition-colors duration-700 ${nudged === g ? 'text-glow' : 'text-soon'}`}>
                     coming soon
                   </span>
