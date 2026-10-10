@@ -311,7 +311,10 @@ export function FluidCanvas({ mode }: { mode: FluidMode }) {
     // outline shows its pixels.
     const maxScale = Math.min(window.devicePixelRatio, 1.5)
     const minScale = Math.min(window.devicePixelRatio, 1)
-    let scale = maxScale
+    // Diagnosis on a real device: ?scale=<n> fixes the resolution, ?debug shows what the GPU does
+    const query = new URLSearchParams(location.search)
+    const forced = Number(query.get('scale')) || 0
+    let scale = forced || maxScale
     // Cached so the frame never reads layout
     let cw = 1
     let ch = 1
@@ -331,7 +334,7 @@ export function FluidCanvas({ mode }: { mode: FluidMode }) {
     let paceTime = 0
     let slowWindows = 0
     const pace = (dtMs: number, now: number) => {
-      if (now - start < 2500 || scale <= minScale) return
+      if (forced || now - start < 2500 || scale <= minScale) return
       paceFrames++
       paceTime += dtMs
       if (paceFrames < WINDOW) return
@@ -374,6 +377,23 @@ export function FluidCanvas({ mode }: { mode: FluidMode }) {
     let last = start
     let raf = 0
     let drawn = 0
+    let debug: HTMLPreElement | null = null
+    let debugInfo = ''
+    let fpsFrames = 0
+    let fpsAt = start
+    if (query.has('debug')) {
+      const info = gl.getExtension('WEBGL_debug_renderer_info')
+      const gpu = info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)
+      const hp = gl.getShaderPrecisionFormat(gl.FRAGMENT_SHADER, gl.HIGH_FLOAT)
+      const mp = gl.getShaderPrecisionFormat(gl.FRAGMENT_SHADER, gl.MEDIUM_FLOAT)
+      debugInfo = `gpu ${gpu}
+highp ${hp ? `${hp.precision} bits, 2^${hp.rangeMax}` : 'none'} · mediump ${mp ? `${mp.precision} bits` : '-'}`
+      debug = document.createElement('pre')
+      debug.style.cssText =
+        'position:fixed;left:8px;right:8px;bottom:8px;z-index:9999;margin:0;padding:8px;font:11px/1.4 monospace;color:#fff;background:rgba(0,0,0,.75);white-space:pre-wrap;pointer-events:none'
+      debug.textContent = debugInfo
+      document.body.appendChild(debug)
+    }
 
     // Each blob's place in the whole mass this frame (object units; x, y, z, radius)
     const base = new Float32Array(COUNT * 4)
@@ -840,11 +860,21 @@ export function FluidCanvas({ mode }: { mode: FluidMode }) {
       // are always drawn, so the shader is compiled and warm before anything is shown.
       drawn++
       if (!(object.covered || object.menuCovered) || drawn < 4) gl.drawArrays(gl.TRIANGLES, 0, 3)
+      if (debug) {
+        fpsFrames++
+        if (now - fpsAt > 1000) {
+          debug.textContent = `${debugInfo}
+canvas ${canvas.width}x${canvas.height} · scale ${scale.toFixed(2)} · dpr ${window.devicePixelRatio} · ${Math.round((fpsFrames * 1000) / (now - fpsAt))} fps`
+          fpsFrames = 0
+          fpsAt = now
+        }
+      }
       raf = requestAnimationFrame(frame)
     }
     raf = requestAnimationFrame(frame)
 
     return () => {
+      debug?.remove()
       cancelAnimationFrame(raf)
       ro.disconnect()
       gl.deleteBuffer(buffer)
