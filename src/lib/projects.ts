@@ -143,7 +143,10 @@ export function constellation(
 
 // Portrait rows: where they start and end down the screen (fractions of its height), and how far
 // a fragment's centre sits from the middle (fraction of its width)
-const PORTRAIT_ROWS = [0.19, 0.97]
+// Touch screens show no back link under the header (the phone's back gesture and the menu do
+// that), so their rows and panel start just under the logo instead of under the link
+const coarse = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches
+const PORTRAIT_ROWS = [coarse ? 0.11 : 0.19, 0.97]
 const PORTRAIT_SIDE = 0.25
 const cx0 = (points: Point[]) => points.reduce((s, p) => s + p[0], 0) / points.length
 
@@ -295,7 +298,7 @@ const PANEL: [number, number, number, number] = [0.2, 0.88, 0.06, 0.94]
 // Portrait (phones): the screen is short across, so the panel takes more of its height, just
 // clear of the header's back link, and a little more of its width; the masses above and below
 // draw back toward the screen's ends and are smaller, keeping their composition
-const PANEL_PORTRAIT: [number, number, number, number] = [0.15, 0.92, 0.04, 0.96]
+const PANEL_PORTRAIT: [number, number, number, number] = [coarse ? 0.1 : 0.15, 0.92, 0.04, 0.96]
 const PORTRAIT_MASS = 0.75
 
 // An open view's slot (index into the left slots, then the right ones) for the screen's

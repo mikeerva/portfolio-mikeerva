@@ -308,7 +308,9 @@ export function Projects({ category, project, onProject }: Props) {
             initial={{ opacity: 0, x: -8 }}
             animate={{ opacity: 1, x: 0, transition: { duration: 0.6, ease, delay: 2.4 } }}
             exit={{ opacity: 0, transition: { duration: 0.2 } }}
-            className="lift-shadow group absolute left-5 top-24 z-20 flex items-baseline gap-[0.3em] text-phi-sm font-semibold lowercase text-cream transition-colors duration-500 hover:text-glow sm:left-8 sm:top-28"
+            // Not on touch screens: there the phone's own back gesture (or the menu) leaves the project
+            // Not on touch screens: there the phone's own back gesture (or the menu) leaves the project
+            className="lift-shadow group absolute left-5 top-24 z-20 flex items-baseline pointer-coarse:hidden pointer-coarse:hidden gap-[0.3em] text-phi-sm font-semibold lowercase text-cream transition-colors duration-500 hover:text-glow sm:left-8 sm:top-28"
           >
             {/* the arrow holds still; the word grows a little and its letters open, as the site's labels do */}
             <span aria-hidden>←</span>

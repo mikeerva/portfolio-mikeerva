@@ -599,7 +599,8 @@ export function Work({ selected, project, onSelect, onClose, onProject }: Props)
               initial={{ opacity: 0, x: -8 }}
               animate={{ opacity: 1, x: 0, transition: { duration: 0.6, ease, delay: 1.6 } }}
               exit={{ opacity: 0, transition: { duration: 0.3 } }}
-              className="lift-shadow group pointer-events-auto absolute left-5 top-24 flex items-baseline gap-[0.3em] text-phi-sm font-semibold lowercase text-cream transition-colors duration-500 hover:text-glow sm:left-8 sm:top-28"
+              // Not on touch screens: there the phone's own back gesture (or the menu) leaves the category
+              className="lift-shadow group pointer-events-auto absolute left-5 top-24 flex items-baseline pointer-coarse:hidden gap-[0.3em] text-phi-sm font-semibold lowercase text-cream transition-colors duration-500 hover:text-glow sm:left-8 sm:top-28"
             >
               {/* the arrow holds still; the words grow a little and their letters open, as the site's labels do */}
               <span aria-hidden>←</span>
