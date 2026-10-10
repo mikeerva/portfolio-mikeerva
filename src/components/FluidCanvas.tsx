@@ -306,11 +306,11 @@ export function FluidCanvas({ mode }: { mode: FluidMode }) {
     gl.uniform3fv(gl.getUniformLocation(program, 'uColor'), hexToRgb(config.blobColor))
 
     // Render resolution (canvas px per CSS px). Every pixel runs the whole blob loop, so this is
-    // what the frame costs. The material is soft enough to be drawn below the screen's density and
-    // scaled up, so phones start lower, and any device that can't keep up steps down further.
-    const touch = window.matchMedia('(pointer: coarse)').matches
-    const maxScale = Math.min(window.devicePixelRatio, touch ? 1 : 1.5)
-    const minScale = 0.75
+    // what the frame costs; a device that can't keep up steps down. Never below one canvas pixel
+    // per CSS pixel: on a phone's dense screen, anything coarser is scaled up so far that the
+    // outline shows its pixels.
+    const maxScale = Math.min(window.devicePixelRatio, 1.5)
+    const minScale = Math.min(window.devicePixelRatio, 1)
     let scale = maxScale
     // Cached so the frame never reads layout
     let cw = 1
