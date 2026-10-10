@@ -1,7 +1,6 @@
 // Every photograph the FOLD case study uses, by slot. Each slot is a file in
-// public/projects/fold/. The files there now are INTERIM: low-resolution extracts from the
-// approved case-study board (around 200–470 px wide). Final photography replaces them by saving
-// over the same filename — no code changes. Recommended sizes are for the final files.
+// public/projects/fold/. Approved replacements can be saved over the same filename — no code
+// changes are needed. The dimensions below are the intended production sizes.
 // See public/projects/fold/README.md.
 export const PHOTOS = {
   // FINAL production photograph (the opening hero), in two layers: the ground, and the cup cut

@@ -41,8 +41,8 @@
   -webkit-user-drag: none;
 }
 
-/* a photograph fades in and settles once it has actually loaded, instead of popping in. The set
-   is small (about 1.2 MB), so they all load as the case study opens rather than lazily. */
+/* A photograph fades in and settles once it has actually loaded, instead of popping in. They all
+   start loading once the panel has opened (see PhotosReady), so they're in before they're reached. */
 .fold-photo {
   opacity: 0;
   transform: scale(1.03);

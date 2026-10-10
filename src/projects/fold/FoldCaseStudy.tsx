@@ -1,5 +1,6 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { useContext, useEffect, useId, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react'
+import { createContext, useContext, useEffect, useId, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react'
+import { afterPanelOpens } from '../../lib/scene'
 import { ScrollerContext, useInView, useScrollProgress } from '../scroll'
 import { PHOTOS, photoSrc, type PhotoKey } from './assets'
 import './fold.css'
@@ -12,20 +13,36 @@ import { PATH, VIEWBOX } from './wordmark'
 
 const LINE = 'Brunch / Bakery / Specialty coffee / All day'
 
+// The chapters' photographs start loading once the panel has opened, all of them, so they're
+// there before the reader scrolls to them; fetched during the opening they'd compete with it.
+// (Loaded only as each came near, they arrived late, visibly.) The opening's own two images
+// load straight away.
+const PhotosReady = createContext(false)
+
 export function FoldCaseStudy() {
+  const [photosReady, setPhotosReady] = useState(false)
+  useEffect(() => {
+    let cancelled = false
+    afterPanelOpens(() => cancelled).then((open) => open && setPhotosReady(true))
+    return () => {
+      cancelled = true
+    }
+  }, [])
   return (
-    <article className="fold" aria-label="Fold — Brand identity case study">
-      <Opening />
-      <Idea />
-      <Wordmark />
-      <Packaging />
-      <Space />
-      <Print />
-      <Social />
-      <Order />
-      <Motion />
-      <Closing />
-    </article>
+    <PhotosReady.Provider value={photosReady}>
+      <article className="fold" aria-label="Fold — Brand identity case study">
+        <Opening />
+        <Idea />
+        <Wordmark />
+        <Packaging />
+        <Space />
+        <Print />
+        <Social />
+        <Order />
+        <Motion />
+        <Closing />
+      </article>
+    </PhotosReady.Provider>
   )
 }
 
@@ -40,11 +57,12 @@ function Mark({ className = '', viewBox = VIEWBOX, style }: { className?: string
 }
 
 function Photo({ k, className = '', style }: { k: PhotoKey; className?: string; style?: CSSProperties }) {
+  const ready = useContext(PhotosReady)
   return (
     <div className={`overflow-hidden ${className}`} style={style}>
       <img
         ref={showWhenLoaded}
-        src={photoSrc(k)}
+        src={ready ? photoSrc(k) : undefined}
         alt={PHOTOS[k].alt}
         decoding="async"
         className="fold-photo"
@@ -178,7 +196,7 @@ function Opening() {
             } as CSSProperties
           }
         >
-          <img src={photoSrc('heroGround')} alt="" decoding="async" className="absolute inset-0" />
+          <img src={photoSrc('heroGround')} alt="" fetchPriority="high" decoding="async" className="absolute inset-0" />
           {/* centred where the cup stood in the original photograph, a little smaller */}
           <div
             data-scroll
@@ -192,7 +210,7 @@ function Opening() {
               transform: 'translateY(calc(var(--p, 0) * -9cqh)) rotate(calc(var(--p, 0) * -5deg))',
             }}
           >
-            <img src={photoSrc('heroCup')} alt={PHOTOS.heroCup.alt} decoding="async" />
+            <img src={photoSrc('heroCup')} alt={PHOTOS.heroCup.alt} fetchPriority="high" decoding="async" />
           </div>
         </div>
       </div>
@@ -696,7 +714,7 @@ const SOCIAL_POSTS: SocialPost[] = [
   {
     id: '03',
     type: 'image',
-    src: '/projects/fold/social/post-03-v2.png',
+    src: '/projects/fold/social/post-03-v2.jpg',
     caption: 'Same routine. Different angle. A familiar coffee and a different street home.',
     alt: 'Same Routine Different Angle — a FOLD poster on a weathered wall beside a coffee cup and the branded kraft carrier bag with flat paper handles and red-orange fold graphics',
   },
@@ -724,21 +742,21 @@ const SOCIAL_POSTS: SocialPost[] = [
   {
     id: '07',
     type: 'image',
-    src: '/projects/fold/social/post-07-v2.png',
+    src: '/projects/fold/social/post-07-v2.jpg',
     caption: 'A coffee, a croissant, a moment in the sun. Good things come with a few crumbs.',
     alt: 'Good things inside — the cream FOLD hero cup with a black lid and straw, a croissant and branded FOLD napkins on a sunlit stone counter',
   },
   {
     id: '08',
     type: 'image',
-    src: '/projects/fold/social/post-08-v2.png',
+    src: '/projects/fold/social/post-08-v2.jpg',
     caption: 'One more layer for the road. Fold it, carry it, open it wherever the day takes you.',
     alt: 'One more layer — the FOLD kraft carrier bag with paper handles, an open pastry box with branded tissue and a round seal, and printed FOLD napkins on a concrete counter',
   },
   {
     id: '09',
     type: 'image',
-    src: '/projects/fold/social/post-09-v2.png',
+    src: '/projects/fold/social/post-09-v2.jpg',
     caption: 'The light changes. The neighbourhood stays. Coffee, food, people. Athens, every day.',
     alt: 'Athens every day — the cream FOLD hero cup with a black lid and straw beside the branded kraft carrier bag with paper handles, outside a warm neighbourhood cafe at blue hour',
   },
@@ -830,6 +848,7 @@ function PhoneFrame({ screenRef, height, children }: { screenRef?: RefObject<HTM
 
 // A post's 4:5 media, with a placeholder option for future work in progress.
 function SocialMedia({ post }: { post: SocialPost }) {
+  const ready = useContext(PhotosReady)
   return (
     <div className="relative aspect-[4/5] w-full overflow-hidden bg-[#ebe4d8]">
       {post.type === 'placeholder' && (
@@ -844,7 +863,7 @@ function SocialMedia({ post }: { post: SocialPost }) {
         </div>
       )}
       {post.type === 'image' && (
-        <img src={post.src} alt={post.alt} loading="lazy" decoding="async" className="absolute inset-0 size-full object-cover" />
+        <img src={ready ? post.src : undefined} alt={post.alt} decoding="async" className="absolute inset-0 size-full object-cover" />
       )}
       {post.type === 'video' && <SocialVideo post={post} />}
     </div>
@@ -862,6 +881,7 @@ function SocialIcon({ d }: { d: string }) {
 // The FOLD account: the top of the profile, then the posts one after another. Its text is sized
 // by whatever holds it (the phone's screen, or the column on narrow panels), in cqw.
 function SocialFeed({ postRefs }: { postRefs?: RefObject<(HTMLElement | null)[]> }) {
+  const ready = useContext(PhotosReady)
   const [selectedHighlight, setSelectedHighlight] = useState<number | null>(null)
   const highlightId = useId()
   const highlightButtons = useRef<(HTMLButtonElement | null)[]>([])
@@ -900,7 +920,7 @@ function SocialFeed({ postRefs }: { postRefs?: RefObject<(HTMLElement | null)[]>
             >
               <span className="mx-auto block aspect-square w-[90%] rounded-full border-2 border-[var(--signal)] p-[5%] transition-colors group-hover:border-[var(--ink)]">
                 <span className="block size-full overflow-hidden rounded-full bg-[var(--kraft-light)]">
-                  <img src={photoSrc(item.photo)} alt="" loading="lazy" decoding="async" className="size-full object-cover" />
+                  <img src={ready ? photoSrc(item.photo) : undefined} alt="" decoding="async" className="size-full object-cover" />
                 </span>
               </span>
               <span className="fold-mono mt-2 block text-[max(10px,2.8cqw)]">{item.label}</span>
@@ -919,7 +939,7 @@ function SocialFeed({ postRefs }: { postRefs?: RefObject<(HTMLElement | null)[]>
                 <button type="button" onClick={closeHighlight} aria-label="Close highlight" className="min-h-[44px] min-w-[44px] text-xl focus-visible:outline-2 focus-visible:outline-[var(--ink)]">×</button>
               </div>
               <div className="aspect-[4/3]">
-                <img src={photoSrc(highlight.photo)} alt={PHOTOS[highlight.photo].alt} loading="lazy" decoding="async" className="size-full object-cover" />
+                <img src={ready ? photoSrc(highlight.photo) : undefined} alt={PHOTOS[highlight.photo].alt} decoding="async" className="size-full object-cover" />
               </div>
               <div className="p-[5%]">
                 <h4 className="fold-display text-[max(18px,6cqw)]">{highlight.title}</h4>

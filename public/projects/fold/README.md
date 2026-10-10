@@ -2,13 +2,11 @@
 
 Everything the FOLD case study (`src/projects/fold/`) loads from this folder.
 
-## Status: interim
+## Status: production set
 
-No production photography exists yet, and no image generation was available when the case
-study was built. So every image here is an **interim extract from the approved FOLD
-case-study board** — one tile of the board each, at the board's resolution (roughly
-200–470 px wide). They are correct in content and art direction but **soft at the sizes the
-case study shows them**.
+This folder contains the current FOLD case-study image set. The source of truth is the
+filename mapping in `src/projects/fold/assets.ts`; replace an asset in place when a newer
+approved version is available so the layout and case-study code do not need to change.
 
 **To replace one:** save the final photograph over the file with the **same name**. Nothing
 in the code needs to change. Recommended sizes (and the alt text the page uses) are listed in
@@ -18,7 +16,7 @@ in the code needs to change. Recommended sizes (and the alt text the page uses) 
 | --- | --- | --- |
 | croissant-macro.jpg | Laminated croissant torn open, layers, crumbs (07, the order app) | 2400 × 1650 |
 
-Final photography, already in place: the opening hero (`hero-ground.jpg` and the cut-out
+The current set includes the opening hero (`hero-ground.jpg` and the cut-out
 `hero-cup.webp`), `city-carry.jpg` and `city-cup-bag.jpg` (01), the wordmark in use
 (`mark-*.jpg`, 02), packaging (03): the lead `pack-boxes.jpg` and the range — `cup-hot.jpg`,
 `kraft-bag.jpg`, `box-orange.jpg`, `pastry-bag-sticker.jpg`, `napkins.jpg`, `stickers.jpg`,
@@ -28,10 +26,15 @@ own proportions, never cropped), `counter.jpg` (4:3) and `a-frame.jpg` (3:4); an
 
 ## Social media (06)
 
-The feed in the phone is nine posts, each **4:5, master 1080 × 1350**. They are placeholders
-for now. To fill one, put the file in `social/` here and replace its entry in `SOCIAL_POSTS`
-(`src/projects/fold/FoldCaseStudy.tsx`) — an image (`type: 'image'`) or a muted, looping video
-(`type: 'video'`, with an optional poster frame). The scroll journey measures itself.
+The feed has nine **4:5** image posts with individual campaign captions. Files and copy are
+defined in `SOCIAL_POSTS` (`src/projects/fold/FoldCaseStudy.tsx`); each entry includes `caption`
+and descriptive `alt` text. Updated product-reference versions use `-v2` filenames.
+Video entries are also supported (`type: 'video'`, with an optional poster frame).
+The scroll journey measures the feed, including captions and expanded highlights.
+
+Four highlights — Coffee, Bakery, To go and Athens — reuse approved project photography.
+Their covers and short stories are defined in `SOCIAL_HIGHLIGHTS`. Each opens inline and can
+be closed with its close button; keyboard focus returns to the corresponding cover.
 
 ## Wordmark
 
