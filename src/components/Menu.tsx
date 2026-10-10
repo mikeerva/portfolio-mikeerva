@@ -1,7 +1,7 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { useEffect, useRef, useState } from 'react'
 import { config } from '../config'
-import { track } from '../lib/audio'
+import { object } from '../lib/scene'
 
 const ease = [0.22, 1, 0.36, 1] as const
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -184,6 +184,17 @@ export function Menu() {
     setHovered(-1)
   }
 
+  // Once the liquid has filled the screen, the canvas beneath it is only seen blurred and tinted:
+  // it holds still there, sparing the GPU both its own drawing and the blur re-made every frame
+  useEffect(() => {
+    if (!open) return
+    const id = setTimeout(() => (object.menuCovered = true), 1300)
+    return () => {
+      clearTimeout(id)
+      object.menuCovered = false
+    }
+  }, [open])
+
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close()
@@ -361,13 +372,12 @@ export function Menu() {
               </ul>
             </nav>
 
-            {/* Who, how to reach, and the music's credit */}
+            {/* Who, and how to reach */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1, transition: { duration: 0.8, delay: 1.0 } }}
               exit={{ opacity: 0, transition: { duration: 0.2 } }}
-              // Clear of the sound button, which stays in the corner over the menu
-              className="relative flex flex-col gap-3 border-t pt-5 pr-16 pb-8 text-phi-xs font-medium uppercase tracking-[0.25em] sm:flex-row sm:items-baseline sm:justify-between"
+              className="relative flex flex-col gap-3 border-t pt-5 pb-8 text-phi-xs font-medium uppercase tracking-[0.25em] sm:flex-row sm:items-baseline sm:justify-between"
               style={{ borderColor: white(0.18), color: white(0.6) }}
             >
               <span>
@@ -375,9 +385,6 @@ export function Menu() {
               </span>
               <a href={`mailto:${config.email}`} className="text-white transition-colors duration-300 hover:text-glow">
                 {config.email}
-              </a>
-              <a href={track.url} target="_blank" rel="noreferrer" className="transition-colors duration-300 hover:text-white">
-                Music: “{track.title}” — {track.artist} · {track.license}
               </a>
             </motion.div>
           </motion.div>

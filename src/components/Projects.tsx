@@ -50,6 +50,10 @@ export function Projects({ category, project, onProject }: Props) {
   }, [isPresent])
 
   useEffect(() => {
+    // The panel's styles as last written, reset whenever a project mounts a new panel
+    const blank = { left: '', top: '', width: '', height: '', clipPath: '', opacity: '', pointerEvents: '' }
+    let written = { ...blank }
+    let writtenTo: HTMLDivElement | null = null
     object.onProjectsFrame = ({ split, enter, fragments: f }) => {
       fragments.current = f
       const leave = leftAt.current === null ? 1 : 1 - smoothstep(0, PANEL_LEAVE_S * 1000, performance.now() - leftAt.current)
@@ -82,13 +86,23 @@ export function Projects({ category, project, onProject }: Props) {
       if (panel) {
         const r = panelRect(window.innerWidth, window.innerHeight)
         const clip = ((1 - Math.min(reveal, leave)) * 50).toFixed(2)
-        panel.style.left = `${r.left}px`
-        panel.style.top = `${r.top}px`
-        panel.style.width = `${r.width}px`
-        panel.style.height = `${r.height}px`
-        panel.style.clipPath = r.portrait ? `inset(${clip}% 0 round ${PANEL_RADIUS}px)` : `inset(0 ${clip}% round ${PANEL_RADIUS}px)`
-        panel.style.opacity = String(smoothstep(0, 0.3, reveal) * smoothstep(0, 0.1, leave))
-        panel.style.pointerEvents = reveal > 0.95 && leave === 1 ? 'auto' : 'none'
+        if (writtenTo !== panel) {
+          writtenTo = panel
+          written = { ...blank }
+        }
+        // Written only when changed: each write re-lays out or repaints the whole case study
+        const set = (key: keyof typeof written, value: string) => {
+          if (written[key] === value) return
+          written[key] = value
+          panel.style[key] = value
+        }
+        set('left', `${r.left}px`)
+        set('top', `${r.top}px`)
+        set('width', `${r.width}px`)
+        set('height', `${r.height}px`)
+        set('clipPath', r.portrait ? `inset(${clip}% 0 round ${PANEL_RADIUS}px)` : `inset(0 ${clip}% round ${PANEL_RADIUS}px)`)
+        set('opacity', String(smoothstep(0, 0.3, reveal) * smoothstep(0, 0.1, leave)))
+        set('pointerEvents', reveal > 0.95 && leave === 1 ? 'auto' : 'none')
       }
       const world = worldRef.current
       if (world) world.style.opacity = String(smoothstep(0.4, 1, reveal) * leave)

@@ -6,7 +6,6 @@ import { LoadingPage } from './components/LoadingPage'
 import { LogoMark } from './components/LogoMark'
 import { Float } from './components/Float'
 import { Menu } from './components/Menu'
-import { SoundToggle } from './components/SoundToggle'
 import { Work } from './components/Work'
 import { config, isLive, type CategoryId } from './config'
 import { prepareWorkEntry } from './lib/onboarding'
@@ -172,10 +171,6 @@ export default function App() {
             />
           )}
         </AnimatePresence>
-
-        <motion.div className="lift-drop absolute bottom-5 z-30 sm:bottom-8" style={{ right: '40px', '--s': '40px' } as CSSProperties} {...appear(1.0)}>
-          <SoundToggle />
-        </motion.div>
       </main>
     </>
   )

@@ -5,6 +5,10 @@ export const object = {
   // Continuous state index: integers are the four facets, fractions are in-between.
   // Unbounded so the object can keep turning; the category is progress mod 4.
   progress: 0,
+  // The loading screen hides the canvas entirely: it keeps its state but skips drawing
+  covered: false,
+  // ...and so does the open menu, once its liquid has filled the screen
+  menuCovered: false,
   // Set with a new progress that the mass should take up at once instead of turning to it
   jump: false,
   // Tilt (radians) from vertical dragging

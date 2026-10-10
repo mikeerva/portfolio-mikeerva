@@ -70,7 +70,13 @@ export function LogoMark({ className = '', reveal, delay = 0, stroke = 8, drift 
     if (!drift || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
     const start = performance.now()
     let raf = 0
+    let drawn = 0
     const tick = (now: number) => {
+      raf = requestAnimationFrame(tick)
+      // The drift is a fraction of a pixel, so ~30 updates a second look the same as 60, and
+      // each update repaints the mark's drop shadow
+      if (now - drawn < 30) return
+      drawn = now
       const t = (now - start) / 1000
       DRIFT.forEach(({ cx, cy, rise, sway, turn, phase }, i) => {
         const x = Math.sin(t * sway + phase) * SWAY
@@ -78,7 +84,6 @@ export function LogoMark({ className = '', reveal, delay = 0, stroke = 8, drift 
         const r = Math.sin(t * turn + phase * 1.3) * TURN
         forms.current[i]?.setAttribute('transform', `translate(${x.toFixed(2)} ${y.toFixed(2)}) rotate(${r.toFixed(3)} ${cx} ${cy})`)
       })
-      raf = requestAnimationFrame(tick)
     }
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)

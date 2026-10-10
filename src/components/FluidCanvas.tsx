@@ -164,7 +164,8 @@ void main() {
     vec2 d = p - b.xy;
     float d2 = max(dot(d, d), 1.0);
     float r2 = b.z * b.z;
-    float c = pow(max(r2 / d2, 1e-12), uSharp);
+    // The Hero's exponent is exactly 1: skip pow (a log and an exp per blob per pixel)
+    float c = uSharp == 1.0 ? r2 / d2 : pow(max(r2 / d2, 1e-12), uSharp);
     f += c;
     ff += b.w > uPanelZ ? c : 0.0;
     fb += b.w > uPanelZ ? 0.0 : c;
@@ -282,15 +283,46 @@ export function FluidCanvas({ mode }: { mode: FluidMode }) {
     const uFrag = gl.getUniformLocation(program, 'uFrag')
     gl.uniform3fv(gl.getUniformLocation(program, 'uColor'), hexToRgb(config.blobColor))
 
-    const dpr = Math.min(window.devicePixelRatio, 1.5)
+    // Render resolution (canvas px per CSS px). Every pixel runs the whole blob loop, so this is
+    // what the frame costs. The material is soft enough to be drawn below the screen's density and
+    // scaled up, so phones start lower, and any device that can't keep up steps down further.
+    const touch = window.matchMedia('(pointer: coarse)').matches
+    const maxScale = Math.min(window.devicePixelRatio, touch ? 1 : 1.5)
+    const minScale = touch ? 0.5 : 0.75
+    let scale = maxScale
+    // Cached so the frame never reads layout
+    let cw = 1
+    let ch = 1
     const resize = () => {
-      canvas.width = Math.round(canvas.clientWidth * dpr)
-      canvas.height = Math.round(canvas.clientHeight * dpr)
+      cw = Math.max(canvas.clientWidth, 1)
+      ch = Math.max(canvas.clientHeight, 1)
+      canvas.width = Math.round(cw * scale)
+      canvas.height = Math.round(ch * scale)
       gl.viewport(0, 0, canvas.width, canvas.height)
     }
     const ro = new ResizeObserver(resize)
     ro.observe(canvas)
     resize()
+    // Frame pacing: after a warm-up, two slow windows in a row lower the resolution a step
+    const WINDOW = 45
+    let paceFrames = 0
+    let paceTime = 0
+    let slowWindows = 0
+    const pace = (dtMs: number, now: number) => {
+      if (now - start < 2500 || scale <= minScale) return
+      paceFrames++
+      paceTime += dtMs
+      if (paceFrames < WINDOW) return
+      // Averaging over 22 ms is under ~45 fps
+      slowWindows = paceTime / paceFrames > 22 ? slowWindows + 1 : 0
+      paceFrames = 0
+      paceTime = 0
+      if (slowWindows >= 2) {
+        slowWindows = 0
+        scale = Math.max(minScale, scale * 0.8)
+        resize()
+      }
+    }
 
     const speed = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0.15 : 1
     const data = new Float32Array(COUNT * 4)
@@ -317,6 +349,7 @@ export function FluidCanvas({ mode }: { mode: FluidMode }) {
     const start = performance.now()
     let last = start
     let raf = 0
+    let drawn = 0
 
     // Each blob's place in the whole mass this frame (object units; x, y, z, radius)
     const base = new Float32Array(COUNT * 4)
@@ -381,7 +414,7 @@ export function FluidCanvas({ mode }: { mode: FluidMode }) {
     const slotOf = new Int8Array(COUNT)
     let slotsFor = false
     const assignSlots = (g: number) => {
-      const portrait = canvas.clientHeight > canvas.clientWidth
+      const portrait = ch > cw
       // Along the long axis, from left (landscape) or top (portrait; GL y runs upward)
       const along = (i: number) => (portrait ? -screen[i * 3 + 1] : screen[i * 3])
       const own: number[] = []
@@ -406,16 +439,17 @@ export function FluidCanvas({ mode }: { mode: FluidMode }) {
 
     const frame = (now: number) => {
       const t = ((now - start) / 1000) * speed
+      pace(now - last, now)
       const dt = Math.min((now - last) / 1000, 0.05)
       last = now
       const w = canvas.width
       const h = canvas.height
       const m = Math.max(w, h)
       const current = modeRef.current
-      const portrait = canvas.clientHeight > canvas.clientWidth
+      const portrait = ch > cw
 
-      const k = w / Math.max(canvas.clientWidth, 1)
-      const layout = objectLayout(canvas.clientWidth, canvas.clientHeight)
+      const k = w / cw
+      const layout = objectLayout(cw, ch)
       const zoomTarget = current !== 'work' ? HERO_ZOOM : object.open ? 1 : object.hover ? 1.05 : 1
       const inAbout = current === 'about'
       if (inAbout && !wasAbout) aboutClock = 0
@@ -428,7 +462,7 @@ export function FluidCanvas({ mode }: { mode: FluidMode }) {
         1,
       )
       const aboutReveal = portraitOpen * portraitOpen * (3 - 2 * portraitOpen)
-      const frame0 = aboutLayout(canvas.clientWidth, canvas.clientHeight).frame
+      const frame0 = aboutLayout(cw, ch).frame
       zoom += (zoomTarget - zoom) * 0.035
       tilt += (object.tilt - tilt) * 0.08
       // A new resting orientation set without a turn: taken up at once rather than turned to
@@ -801,6 +835,9 @@ export function FluidCanvas({ mode }: { mode: FluidMode }) {
 
       // One object unit of depth, in device px
       gl.uniform1f(uUnit, unit)
+      // Back in the Hero the Work weights only approach zero; snap them, so the shader's
+      // Hero-only shortcuts apply
+      if (workShare < 1e-3) workShare = 0
       gl.uniform1f(uSharp, 1 + workShare * 0.6)
       gl.uniform1f(uWork, workShare)
       // Leaving Work or the category: the panel and its cut-out close back into their centre line
@@ -815,7 +852,7 @@ export function FluidCanvas({ mode }: { mode: FluidMode }) {
         gl.uniform4f(uPanel, frame0.left * k, h - (frame0.top + frame0.height) * k, (frame0.left + frame0.width) * k, h - top * k)
         gl.uniform1f(uPanelA, ramp(0, 0.08, aboutReveal))
       } else {
-        const pr = panelRect(canvas.clientWidth, canvas.clientHeight)
+        const pr = panelRect(cw, ch)
         const clipX = pr.portrait ? 0 : (pr.width * (1 - open)) / 2
         const clipY = pr.portrait ? (pr.height * (1 - open)) / 2 : 0
         gl.uniform4f(
@@ -833,7 +870,10 @@ export function FluidCanvas({ mode }: { mode: FluidMode }) {
       gl.uniform1f(uTime, t)
       gl.uniform1f(uFrag, ramp(0.5, 1, split) * (1 - ramp(0.05, 0.4, enter)) * workShare)
       gl.uniform4fv(uBlobs, data)
-      gl.drawArrays(gl.TRIANGLES, 0, 3)
+      // Hidden under the loading screen or the open menu, it holds its last frame. A few frames
+      // are always drawn, so the shader is compiled and warm before anything is shown.
+      drawn++
+      if (!(object.covered || object.menuCovered) || drawn < 4) gl.drawArrays(gl.TRIANGLES, 0, 3)
       raf = requestAnimationFrame(frame)
     }
     raf = requestAnimationFrame(frame)

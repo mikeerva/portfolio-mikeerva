@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { useRef, useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import { useResourceLoader } from '../hooks/useResourceLoader'
-import { audio } from '../lib/audio'
+import { object } from '../lib/scene'
 
 interface Props {
   // The screen has started lifting enough for the Hero beneath to be seen forming
@@ -12,11 +12,8 @@ interface Props {
 const FADE_OUT = 2
 // When, into the fade, the Hero starts forming
 const START_AFTER_MS = 400
-// Longest the fade waits for the music to start, then for the page to run smoothly again
-const MUSIC_WAIT_MS = 400
+// Longest the fade waits for the page to run smoothly
 const SETTLE_MAX_MS = 700
-
-const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
 
 // Resolves once several frames in a row have arrived on time, or after `maxMs`
 function untilSmooth(maxMs: number) {
@@ -39,16 +36,20 @@ export function LoadingPage({ onStart, onComplete }: Props) {
   const [leaving, setLeaving] = useState(false)
   const started = useRef(false)
 
+  // The canvas beneath can't be seen until Start, so it leaves the GPU to the loading
+  useLayoutEffect(() => {
+    object.covered = true
+    return () => void (object.covered = false)
+  }, [])
+
   const start = () => {
     if (started.current) return
     started.current = true
-    // Starting the music briefly stalls the page once, a little after playback reports it has
-    // begun (the audio device opening). The fade waits for the music and then for the page to
-    // run smoothly again (never long), so that stall lands while the screen is still rather
-    // than in the fade's first frames.
-    const music = audio.play().catch(() => {})
-    void Promise.race([music, wait(MUSIC_WAIT_MS)])
-      .then(() => untilSmooth(SETTLE_MAX_MS))
+    // Drawing again from here, so the wait below for smooth frames includes the canvas
+    object.covered = false
+    // The canvas has just started drawing again: the fade waits for the page to run smoothly
+    // (never long), so its first frames don't stutter
+    void untilSmooth(SETTLE_MAX_MS)
       .then(() => {
         setLeaving(true)
         // The fade eases in, so the Hero only starts to show a moment after it begins

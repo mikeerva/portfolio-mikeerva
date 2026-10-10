@@ -19,7 +19,7 @@ in the code needs to change. Recommended sizes (and the alt text the page uses) 
 | croissant-macro.jpg | Laminated croissant torn open, layers, crumbs (07, the order app) | 2400 × 1650 |
 
 Final photography, already in place: the opening hero (`hero-ground.jpg` and the cut-out
-`hero-cup.png`), `city-carry.jpg` and `city-cup-bag.jpg` (01), the wordmark in use
+`hero-cup.webp`), `city-carry.jpg` and `city-cup-bag.jpg` (01), the wordmark in use
 (`mark-*.jpg`, 02), packaging (03): the lead `pack-boxes.jpg` and the range — `cup-hot.jpg`,
 `kraft-bag.jpg`, `box-orange.jpg`, `pastry-bag-sticker.jpg`, `napkins.jpg`, `stickers.jpg`,
 `box-open.jpg`, `wrap-paper.jpg`; the physical space (04): `storefront.jpg` (2:1, shown at its

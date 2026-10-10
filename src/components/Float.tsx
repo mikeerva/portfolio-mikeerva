@@ -18,7 +18,7 @@ export function Float({ children, phase = 0, still = false }: { children: ReactN
       if (el) {
         const rise = Math.sin(t * 0.45 + phase)
         el.style.transform = `translateY(${(-rise * 4).toFixed(2)}px) perspective(600px) rotateY(${(Math.sin(t * 0.23 + phase) * 0.04).toFixed(4)}rad)`
-        el.style.setProperty('--lift', (0.6 + 0.2 * rise).toFixed(3))
+        el.style.setProperty('--lift', (0.6 + 0.2 * rise).toFixed(2))
       }
       raf = requestAnimationFrame(tick)
     }

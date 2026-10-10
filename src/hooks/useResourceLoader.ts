@@ -1,26 +1,4 @@
 import { useEffect, useState } from 'react'
-import { track } from '../lib/audio'
-
-// Real tasks, weighted by size. Each reports 0..1.
-const WEIGHTS = { audio: 0.9, fonts: 0.1 }
-type Task = keyof typeof WEIGHTS
-
-async function fetchWithProgress(url: string, onProgress: (p: number) => void) {
-  const res = await fetch(url)
-  const total = Number(res.headers.get('content-length')) || 0
-  if (!res.body || !total) {
-    await res.arrayBuffer()
-    return
-  }
-  const reader = res.body.getReader()
-  let loaded = 0
-  for (;;) {
-    const { done, value } = await reader.read()
-    if (done) break
-    loaded += value.length
-    onProgress(Math.min(loaded / total, 1))
-  }
-}
 
 export function useResourceLoader() {
   const [progress, setProgress] = useState(0)
@@ -28,18 +6,9 @@ export function useResourceLoader() {
 
   useEffect(() => {
     let alive = true
-    const done: Record<Task, number> = { audio: 0, fonts: 0 }
+    // The only thing waited for is the fonts
     let target = 0
-
-    const report = (task: Task, value: number) => {
-      done[task] = value
-      target = (Object.keys(WEIGHTS) as Task[]).reduce((sum, t) => sum + WEIGHTS[t] * done[t], 0) * 100
-    }
-
-    const tasks = [
-      fetchWithProgress(track.src, (p) => report('audio', p)).catch(() => {}).then(() => report('audio', 1)),
-      document.fonts.ready.catch(() => {}).then(() => report('fonts', 1)),
-    ]
+    document.fonts.ready.catch(() => {}).then(() => (target = 100))
 
     // Displayed value eases toward the real value, so it never jumps and never runs ahead of it.
     let shown = 0
@@ -56,8 +25,6 @@ export function useResourceLoader() {
       raf = requestAnimationFrame(tick)
     }
     raf = requestAnimationFrame(tick)
-
-    void Promise.all(tasks)
 
     return () => {
       alive = false

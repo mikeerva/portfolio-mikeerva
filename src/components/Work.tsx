@@ -290,7 +290,7 @@ export function Work({ selected, project, onSelect, onClose, onProject }: Props)
         front.style.opacity = String(alpha * inFront)
         back.style.opacity = String(alpha * (1 - inFront))
         // How far it has risen off the mass, for the shadow it casts there
-        const risen = (lift / FRONT_LIFT).toFixed(3)
+        const risen = (lift / FRONT_LIFT).toFixed(2)
         front.style.setProperty('--lift', risen)
         back.style.setProperty('--lift', risen)
         if (onboardF && onboardB) {
@@ -319,7 +319,7 @@ export function Work({ selected, project, onSelect, onClose, onProject }: Props)
           onboardF.style.opacity = String(a * oFront)
           onboardB.style.opacity = String(a * (1 - oFront))
           // Standing out on the orbit, it's fully risen while it faces the viewer
-          const oRisen = Math.max(Math.cos(oLean), 0).toFixed(3)
+          const oRisen = Math.max(Math.cos(oLean), 0).toFixed(2)
           onboardF.style.setProperty('--lift', oRisen)
           onboardB.style.setProperty('--lift', oRisen)
           drawOrbit(phi, tilt, cx, cy, u, a)

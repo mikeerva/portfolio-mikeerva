@@ -7,7 +7,7 @@ export const PHOTOS = {
   // FINAL production photograph (the opening hero), in two layers: the ground, and the cup cut
   // out of it (a transparent PNG) so it can drift on its own over the ground
   heroGround: { file: 'hero-ground.jpg', alt: '', size: '1677 × 938' },
-  heroCup: { file: 'hero-cup.png', alt: 'A FOLD iced-coffee cup tipping in mid-air against black', size: '753 × 1117' },
+  heroCup: { file: 'hero-cup.webp', alt: 'A FOLD iced-coffee cup tipping in mid-air against black', size: '753 × 1117' },
   // The wordmark in use (02 — The wordmark)
   markSticker: { file: 'mark-sticker.jpg', alt: 'A signal-orange FOLD sticker on a weathered street pole', size: '1080 × 1450' },
   markCup: { file: 'mark-cup.jpg', alt: 'A white FOLD takeaway cup with the folded corner in hard sunlight', size: '1080 × 1450' },
