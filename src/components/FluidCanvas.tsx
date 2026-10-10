@@ -461,6 +461,8 @@ highp ${hp ? `${hp.precision} bits, 2^${hp.rangeMax}` : 'none'} · mediump ${mp 
     let split = 0
     let enter = 0
     let sinceWork = modeRef.current === 'work' ? 0 : 10
+    // The entering progress as of the last step, for the frame loop's decisions
+    let enterNow = 0
     let entered = -1
     let settled = 0
     // Each blob's position on screen this frame (device px; x, y, radius), for the fragments' extents
@@ -508,11 +510,50 @@ highp ${hp ? `${hp.precision} bits, 2^${hp.rangeMax}` : 'none'} · mediump ${mp 
       rest.forEach((i, k) => (slotOf[i] = free[k % free.length]))
     }
 
+    // The material's own clock: it runs while the material is drawn and stops while it's held,
+    // so its slow life carries on from where it was rather than jumping ahead
+    let clock = 0
+    // Whether anything was still on its way somewhere last step (a turn, a division, an opening,
+    // a change of view): only the slow ambient life was moving if not
+    let still = false
+    let lastStep = start
+    let rafLast = start
+    let heldAt = ''
+    // What the material responds to: while it's held, a change here wakes it
+    const inputs = () =>
+      `${modeRef.current}|${object.open}|${object.focus}|${object.progress}|${object.tilt}|${object.hover}|${object.hoverProject}|${object.covered}|${object.menuCovered}|${cw}x${ch}|${fw}`
+
+    // On touch screens (phones' GPUs), the material is spared whatever can't be seen:
+    // - held still once a project or About has opened and settled: only its slow ambient life
+    //   would move there, under the page being read; it's left as it is, and not drawn at all,
+    //   until something changes
+    // - otherwise, while only that slow life moves, drawn at 30 frames a second, which looks the
+    //   same at its pace; any transition runs at the full rate
     const frame = (now: number) => {
-      const t = ((now - start) / 1000) * speed
-      pace(now - last, now)
+      raf = requestAnimationFrame(frame)
+      pace(now - rafLast, now)
+      rafLast = now
+      if (touch && still) {
+        const current = modeRef.current
+        const settledView =
+          (current === 'work' && object.open && object.focus >= 0 && enterNow >= 1) || (current === 'about' && portraitOpen >= 1)
+        if (settledView) {
+          const key = inputs()
+          if (heldAt === '') heldAt = key
+          if (key === heldAt) return
+        }
+        heldAt = ''
+        if (!settledView && now - lastStep < 30) return
+      } else heldAt = ''
+      lastStep = now
+      step(now)
+    }
+
+    const step = (now: number) => {
       const dt = Math.min((now - last) / 1000, 0.05)
       last = now
+      clock += dt * speed
+      const t = clock
       // The field pass's pixels: everything placed on it is in these
       const w = fw
       const h = fh
@@ -934,7 +975,26 @@ canvas ${canvas.width}x${canvas.height} · field ${fw}x${fh} · scale ${scale.to
           fpsAt = now
         }
       }
-      raf = requestAnimationFrame(frame)
+
+      enterNow = enter
+      // A change of view eases out over seconds; its last 2% is invisible (eased, under 0.1%)
+      let modesSettled = true
+      for (const wts of weights) for (let i = 0; i < COUNT; i++) if (wts[i] > 0.02 && wts[i] < 0.98) modesSettled = false
+      let lagSettled = true
+      for (let i = 0; i < COUNT; i++) if (Math.abs(object.progress - lag[i]) > 1e-3) lagSettled = false
+      let liftSettled = true
+      for (let g = 0; g < groups; g++) if (lift[g] > 0.01 && lift[g] < 0.99) liftSettled = false
+      still =
+        modesSettled &&
+        lagSettled &&
+        liftSettled &&
+        Math.abs(object.progress - turn) < 1e-3 &&
+        Math.abs(zoomTarget - zoom) < 1e-3 &&
+        Math.abs(object.tilt - tilt) < 1e-3 &&
+        (split === 0 || split >= 1) &&
+        (enter === 0 || enter >= 1) &&
+        (portraitOpen === 0 || portraitOpen >= 1) &&
+        (sinceWork === 0 || sinceWork > PANEL_LEAVE_S)
     }
     raf = requestAnimationFrame(frame)
 

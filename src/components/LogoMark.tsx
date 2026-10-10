@@ -67,7 +67,8 @@ export function LogoMark({ className = '', reveal, delay = 0, stroke = 8, drift 
   const forms = useRef<(SVGGElement | null)[]>([])
 
   useEffect(() => {
-    if (!drift || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    // Not on touch screens: a fraction of a pixel there, and each update repaints the mark's shadow
+    if (!drift || matchMedia('(prefers-reduced-motion: reduce)').matches || matchMedia('(pointer: coarse)').matches) return
     const start = performance.now()
     let raf = 0
     let drawn = 0

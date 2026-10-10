@@ -107,6 +107,14 @@
   animation: drop-drift 6s ease-in-out infinite;
 }
 
+/* On touch screens the drops hold still: under the button's gooey filter, their drift repaints it
+   on every frame of every page, for under a pixel of movement */
+@media (pointer: coarse) {
+  .menu-drop {
+    animation: none;
+  }
+}
+
 /* The drop beside a hovered menu link: never quite still, it drifts very slightly on an uneven
    path, like a drop held in the air */
 @keyframes drop-float {
