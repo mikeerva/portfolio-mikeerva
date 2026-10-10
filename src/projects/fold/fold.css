@@ -179,7 +179,36 @@
 @keyframes fold-step-b { 0%, 42% { opacity: 0.3; } 48%, 60% { opacity: 1; } 66%, 100% { opacity: 0.3; } }
 @keyframes fold-step-c { 0%, 60% { opacity: 0.3; } 66%, 96% { opacity: 1; } 100% { opacity: 0.3; } }
 
+/* Order ahead: the "it's live" dot, and a touch pulsing where to tap until the app is first used */
+.fold-live {
+  animation: fold-live 1.6s ease-in-out infinite;
+}
+@keyframes fold-live { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+.fold-tap::before,
+.fold-tap::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+}
+.fold-tap::before {
+  background: var(--signal);
+  opacity: 0.85;
+  animation: fold-tap-dot 2s ease-in-out infinite;
+}
+.fold-tap::after {
+  border: 2px solid var(--signal);
+  animation: fold-tap-ring 2s ease-out infinite;
+}
+@keyframes fold-tap-dot { 0%, 100% { transform: scale(0.55); } 15% { transform: scale(0.42); } 35% { transform: scale(0.55); } }
+@keyframes fold-tap-ring { 0%, 12% { transform: scale(0.6); opacity: 0; } 18% { opacity: 0.9; } 70%, 100% { transform: scale(1.6); opacity: 0; } }
+
 @media (prefers-reduced-motion: reduce) {
+  .fold-live,
+  .fold-tap::before,
+  .fold-tap::after {
+    animation: none !important;
+  }
   .fold-photo,
   .fold-rise,
   .fold-open,

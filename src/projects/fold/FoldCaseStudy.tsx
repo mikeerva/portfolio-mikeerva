@@ -1,5 +1,5 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { useContext, useEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react'
+import { useContext, useEffect, useId, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react'
 import { ScrollerContext, useInView, useScrollProgress } from '../scroll'
 import { PHOTOS, photoSrc, type PhotoKey } from './assets'
 import './fold.css'
@@ -670,71 +670,86 @@ function Print() {
 
 // One post of the feed. Every post's media is 4:5 (master 1080 × 1350); the layout never changes
 // whichever kind it holds.
-type SocialPost =
+type SocialPost = { caption: string } & (
   | { id: string; type: 'placeholder' }
   | { id: string; type: 'image'; src: string; alt: string }
   | { id: string; type: 'video'; src: string; poster?: string; alt: string }
+)
 
-// The nine posts, in feed order. To fill one, replace its entry, for example:
-//   { id: '03', type: 'image', src: '/projects/fold/social/post-03.webp', alt: '…' },
-//   { id: '06', type: 'video', src: '/projects/fold/social/reel-06.mp4', poster: '/projects/fold/social/reel-06.jpg', alt: '…' },
-// Nothing else needs to change: the feed measures itself, so the sticky journey and the active
-// post stay right whatever the posts hold.
+// The nine posts, in feed order. Each has visible campaign copy as well as descriptive alt text.
+// The feed measures itself, so the sticky journey follows the media and caption heights.
 const SOCIAL_POSTS: SocialPost[] = [
   {
     id: '01',
     type: 'image',
     src: '/projects/fold/social/post-01.jpg',
+    caption: 'Start with a fold. Your coffee, a little morning sun, and the city ahead.',
     alt: '”Start with a fold.” — a FOLD takeaway cup on a sunlit stone ledge, folded signal planes in the corners; Coffee / Athens / Every day',
   },
   {
     id: '02',
     type: 'image',
     src: '/projects/fold/social/post-02.jpg',
+    caption: 'Athens, every day. Take your coffee along. The neighbourhood sets the pace.',
     alt: 'Athens, Every Day — a woman walking through an Athens street with a FOLD coffee cup, red fold planes entering from the corner',
   },
   {
     id: '03',
     type: 'image',
-    src: '/projects/fold/social/post-03.jpg',
-    alt: 'Same Routine Different Angle — a FOLD poster on a concrete wall with a kraft paper coffee cup, layered fold planes in red and orange',
+    src: '/projects/fold/social/post-03-v2.png',
+    caption: 'Same routine. Different angle. A familiar coffee and a different street home.',
+    alt: 'Same Routine Different Angle — a FOLD poster on a weathered wall beside a coffee cup and the branded kraft carrier bag with flat paper handles and red-orange fold graphics',
   },
   {
     id: '04',
     type: 'image',
     src: '/projects/fold/social/post-04.jpg',
+    caption: 'One more layer. Paper, colour, a corner turned back. That is where the story unfolds.',
     alt: 'One More Layer — a FOLD poster with the wordmark showing fold planes entering from multiple corners, kraft paper aesthetic',
   },
   {
     id: '05',
     type: 'image',
     src: '/projects/fold/social/post-05.jpg',
+    caption: 'Coffee first. Then a croissant. Leave a little room in your routine for both.',
     alt: 'Same Routine Different Angle — a FOLD coffee with latte art on a sunlit stone surface, paired with a croissant, fold planes in the corner',
   },
   {
     id: '06',
     type: 'image',
     src: '/projects/fold/social/post-06.jpg',
+    caption: 'Good things inside. Lift the corner, open the box, follow the crumbs.',
     alt: 'Good Things Inside. — an opened FOLD kraft takeaway box on a sunlit stone floor, its red inner flaps folded back around wrapped pastries',
   },
   {
     id: '07',
     type: 'image',
     src: '/projects/fold/social/post-07-v2.png',
+    caption: 'A coffee, a croissant, a moment in the sun. Good things come with a few crumbs.',
     alt: 'Good things inside — the cream FOLD hero cup with a black lid and straw, a croissant and branded FOLD napkins on a sunlit stone counter',
   },
   {
     id: '08',
     type: 'image',
     src: '/projects/fold/social/post-08-v2.png',
+    caption: 'One more layer for the road. Fold it, carry it, open it wherever the day takes you.',
     alt: 'One more layer — the FOLD kraft carrier bag with paper handles, an open pastry box with branded tissue and a round seal, and printed FOLD napkins on a concrete counter',
   },
   {
     id: '09',
     type: 'image',
     src: '/projects/fold/social/post-09-v2.png',
+    caption: 'The light changes. The neighbourhood stays. Coffee, food, people. Athens, every day.',
     alt: 'Athens every day — the cream FOLD hero cup with a black lid and straw beside the branded kraft carrier bag with paper handles, outside a warm neighbourhood cafe at blue hour',
   },
+]
+
+// Highlights reuse the identity's approved photography, with a short story behind each cover.
+const SOCIAL_HIGHLIGHTS: { label: string; photo: PhotoKey; title: string; copy: string }[] = [
+  { label: 'Coffee', photo: 'cupHot', title: 'Start with a fold.', copy: 'A cup in hand. A moment before the city picks up. Coffee is where the everyday ritual begins.' },
+  { label: 'Bakery', photo: 'boxOpen', title: 'Good things inside.', copy: 'Layers, a golden crust and a trail of crumbs. Open the box and take a moment for something good.' },
+  { label: 'To go', photo: 'kraftBag', title: 'Made to move.', copy: 'A bag to carry, a corner to open. The same fold follows your coffee and pastry out into the city.' },
+  { label: 'Athens', photo: 'storefront', title: 'Your everyday corner.', copy: 'Concrete, warm light, familiar faces. A neighbourhood seen one coffee at a time.' },
 ]
 
 // A warm white, so the chapter reads as a reset between the print and the website chapters
@@ -813,7 +828,7 @@ function PhoneFrame({ screenRef, height, children }: { screenRef?: RefObject<HTM
   )
 }
 
-// A post's 4:5 media: a quiet placeholder for now, an image or a video later
+// A post's 4:5 media, with a placeholder option for future work in progress.
 function SocialMedia({ post }: { post: SocialPost }) {
   return (
     <div className="relative aspect-[4/5] w-full overflow-hidden bg-[#ebe4d8]">
@@ -847,6 +862,14 @@ function SocialIcon({ d }: { d: string }) {
 // The FOLD account: the top of the profile, then the posts one after another. Its text is sized
 // by whatever holds it (the phone's screen, or the column on narrow panels), in cqw.
 function SocialFeed({ postRefs }: { postRefs?: RefObject<(HTMLElement | null)[]> }) {
+  const [selectedHighlight, setSelectedHighlight] = useState<number | null>(null)
+  const highlightId = useId()
+  const highlightButtons = useRef<(HTMLButtonElement | null)[]>([])
+  const highlight = selectedHighlight === null ? null : SOCIAL_HIGHLIGHTS[selectedHighlight]
+  const closeHighlight = () => {
+    if (selectedHighlight !== null) highlightButtons.current[selectedHighlight]?.focus({ preventScroll: true })
+    setSelectedHighlight(null)
+  }
   const avatar = (size: string) => (
     <span className="grid shrink-0 place-items-center rounded-full bg-[var(--ink)]" style={{ width: size, aspectRatio: '1' }}>
       <Mark className="w-[66%] text-[var(--paper)]" />
@@ -864,11 +887,46 @@ function SocialFeed({ postRefs }: { postRefs?: RefObject<(HTMLElement | null)[]>
           </div>
         </div>
         <p className="fold-mono mt-[5%] text-[3.1cqw]">Coffee / Food / People / Athens</p>
-        {/* highlights, left empty until the content exists */}
-        <div aria-hidden className="mt-[6%] flex gap-[4.5%]">
-          {[0, 1, 2, 3].map((i) => (
-            <span key={i} className="aspect-square w-[15%] rounded-full border border-[var(--ink)]/15 bg-[#ebe4d8]" />
+        <div role="group" aria-label="FOLD highlights" className="mt-[6%] grid grid-cols-4 gap-[4%]">
+          {SOCIAL_HIGHLIGHTS.map((item, i) => (
+            <button
+              key={item.label}
+              ref={(el) => { highlightButtons.current[i] = el }}
+              type="button"
+              aria-expanded={selectedHighlight === i}
+              aria-controls={highlightId}
+              onClick={() => setSelectedHighlight(selectedHighlight === i ? null : i)}
+              className="group min-h-[44px] rounded-md text-center focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--ink)]"
+            >
+              <span className="mx-auto block aspect-square w-[90%] rounded-full border-2 border-[var(--signal)] p-[5%] transition-colors group-hover:border-[var(--ink)]">
+                <span className="block size-full overflow-hidden rounded-full bg-[var(--kraft-light)]">
+                  <img src={photoSrc(item.photo)} alt="" loading="lazy" decoding="async" className="size-full object-cover" />
+                </span>
+              </span>
+              <span className="fold-mono mt-2 block text-[max(10px,2.8cqw)]">{item.label}</span>
+            </button>
           ))}
+        </div>
+        <div id={highlightId} hidden={!highlight}>
+          {highlight && (
+            <section
+              aria-label={`${highlight.label} highlight`}
+              onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); closeHighlight() } }}
+              className="mt-[5%] overflow-hidden rounded-lg border border-[var(--ink)]/15 bg-[var(--paper)]"
+            >
+              <div className="flex items-center justify-between gap-2 px-[5%]">
+                <p className="fold-mono text-[max(10px,2.8cqw)]">{highlight.label}</p>
+                <button type="button" onClick={closeHighlight} aria-label="Close highlight" className="min-h-[44px] min-w-[44px] text-xl focus-visible:outline-2 focus-visible:outline-[var(--ink)]">×</button>
+              </div>
+              <div className="aspect-[4/3]">
+                <img src={photoSrc(highlight.photo)} alt={PHOTOS[highlight.photo].alt} loading="lazy" decoding="async" className="size-full object-cover" />
+              </div>
+              <div className="p-[5%]">
+                <h4 className="fold-display text-[max(18px,6cqw)]">{highlight.title}</h4>
+                <p className="mt-2 text-[max(12px,3.4cqw)] leading-relaxed">{highlight.copy}</p>
+              </div>
+            </section>
+          )}
         </div>
       </div>
       <div aria-hidden className="h-px bg-[var(--ink)]/10" />
@@ -899,11 +957,9 @@ function SocialFeed({ postRefs }: { postRefs?: RefObject<(HTMLElement | null)[]>
               <SocialIcon d="M6 4h12v16l-6-4-6 4V4Z" />
             </span>
           </div>
-          {/* the caption, left as a quiet rule until the copy exists */}
-          <div aria-hidden className="mt-[3.4%] space-y-[1.6%] px-[4%]">
-            <span className="block h-[1.6cqw] w-[72%] rounded-full bg-[var(--ink)]/8" />
-            <span className="block h-[1.6cqw] w-[46%] rounded-full bg-[var(--ink)]/8" />
-          </div>
+          <p className="mt-[3.4%] px-[4%] text-[max(12px,3.4cqw)] leading-relaxed">
+            <span className="font-semibold">fold.athens</span>{' '}{post.caption}
+          </p>
         </article>
       ))}
     </>
@@ -1113,13 +1169,13 @@ const ORDER_NUMBER = '0247'
 const euro = (v: number) => v.toFixed(2)
 
 // A choice in the app: the whole row is the button
-function OrderRow({ item, picked, onPick }: { item: OrderItem; picked: boolean; onPick: () => void }) {
+function OrderRow({ item, picked, onPick, hint = false }: { item: OrderItem; picked: boolean; onPick: () => void; hint?: boolean }) {
   return (
     <button
       type="button"
       onClick={onPick}
       aria-pressed={picked}
-      className={`flex w-full items-center gap-[3.5cqw] border-b border-[var(--ink)]/10 py-[2.6cqw] text-left transition-colors duration-300 ${picked ? 'text-[var(--ink)]' : 'text-[var(--ink)]/70 hover:text-[var(--ink)]'}`}
+      className={`relative flex w-full items-center gap-[3.5cqw] border-b border-[var(--ink)]/10 py-[2.6cqw] text-left transition-colors duration-300 ${picked ? 'text-[var(--ink)]' : 'text-[var(--ink)]/70 hover:text-[var(--ink)]'}`}
     >
       {item.photo && <Photo k={item.photo} className="size-[13cqw] shrink-0 rounded-[2cqw]" />}
       <span className="min-w-0 flex-1">
@@ -1136,6 +1192,8 @@ function OrderRow({ item, picked, onPick }: { item: OrderItem; picked: boolean; 
           clipPath: picked ? 'polygon(0 0, 100% 0, 100% 100%)' : 'polygon(0 0, 100% 0, 100% 100%, 0 100%)',
         }}
       />
+      {/* where to tap, until the app is first used */}
+      {hint && <span aria-hidden className="fold-tap pointer-events-none absolute right-[2cqw] top-1/2 size-[10cqw] translate-x-1/2 -translate-y-1/2" />}
     </button>
   )
 }
@@ -1170,6 +1228,8 @@ function Order() {
   // undefined: not chosen yet; null: "no thanks"
   const [pastry, setPastry] = useState<OrderItem | null | undefined>(undefined)
   const [placedAt, setPlacedAt] = useState<Date | null>(null)
+  // Whether the app has been touched yet: until then a pulse shows where to tap
+  const [used, setUsed] = useState(false)
   const items = [coffee, pastry].filter(Boolean) as OrderItem[]
   const total = items.reduce((s, it) => s + it.price, 0)
   const readyAt = placedAt ? new Date(placedAt.getTime() + 6 * 60 * 1000) : null
@@ -1234,13 +1294,24 @@ function Order() {
               )
             })}
           </ol>
-          <p className="fold-mono mt-[5cqh] text-[10px] text-[var(--ink)]/50">Try it — tap inside the phone.</p>
+          <p className="fold-mono mt-[5cqh] flex items-center gap-2 text-[11px] text-[var(--ink)]">
+            <span>Try it — tap inside the phone</span>
+            <span aria-hidden className="text-[var(--signal)]">
+              <span className="@2xl:hidden">↓</span>
+              <span className="hidden @2xl:inline">→</span>
+            </span>
+          </p>
         </div>
 
         {/* the phone: the app itself */}
         <div className="flex justify-center @2xl:col-span-5">
           <In kind="rise" delay={0.1}>
-            <div className="[--ph:min(680px,175cqw)] @2xl:[--ph:min(760px,82cqh)]">
+            {/* it's a working app, not a picture of one */}
+            <p className="fold-mono mx-auto mb-[2.4cqh] flex w-fit items-center gap-2 rounded-full bg-[var(--ink)] px-3.5 py-1.5 text-[10px] uppercase tracking-[0.12em] text-[var(--paper)]">
+              <span aria-hidden className="fold-live size-1.5 rounded-full bg-[var(--signal)]" />
+              Live prototype — tap to order
+            </p>
+            <div className="[--ph:min(680px,175cqw)] @2xl:[--ph:min(720px,74cqh)]" onPointerDown={() => setUsed(true)}>
               <PhoneFrame height="var(--ph)">
                 <div className="absolute inset-x-0 bottom-0 top-[12cqw] flex flex-col">
                   {/* the app's own bar: the mark, and how far the order has come */}
@@ -1286,8 +1357,8 @@ function Order() {
                             </div>
                             <p className="fold-display mt-[5cqw] text-[9cqw]">Coffee.</p>
                             <div className="mt-[1cqw]">
-                              {COFFEES.map((c) => (
-                                <OrderRow key={c.id} item={c} picked={coffee?.id === c.id} onPick={() => setCoffee(c)} />
+                              {COFFEES.map((c, i) => (
+                                <OrderRow key={c.id} item={c} picked={coffee?.id === c.id} onPick={() => setCoffee(c)} hint={!used && i === 0} />
                               ))}
                             </div>
                             <OrderButton disabled={!coffee} onClick={() => go(1)}>
