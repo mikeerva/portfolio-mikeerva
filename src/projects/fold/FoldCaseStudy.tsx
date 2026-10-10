@@ -717,9 +717,24 @@ const SOCIAL_POSTS: SocialPost[] = [
     src: '/projects/fold/social/post-06.jpg',
     alt: 'Good Things Inside. — an opened FOLD kraft takeaway box on a sunlit stone floor, its red inner flaps folded back around wrapped pastries',
   },
-  { id: '07', type: 'placeholder' },
-  { id: '08', type: 'placeholder' },
-  { id: '09', type: 'placeholder' },
+  {
+    id: '07',
+    type: 'image',
+    src: '/projects/fold/social/post-07-v2.png',
+    alt: 'Good things inside — the cream FOLD hero cup with a black lid and straw, a croissant and branded FOLD napkins on a sunlit stone counter',
+  },
+  {
+    id: '08',
+    type: 'image',
+    src: '/projects/fold/social/post-08-v2.png',
+    alt: 'One more layer — the FOLD kraft carrier bag with paper handles, an open pastry box with branded tissue and a round seal, and printed FOLD napkins on a concrete counter',
+  },
+  {
+    id: '09',
+    type: 'image',
+    src: '/projects/fold/social/post-09-v2.png',
+    alt: 'Athens every day — the cream FOLD hero cup with a black lid and straw beside the branded kraft carrier bag with paper handles, outside a warm neighbourhood cafe at blue hour',
+  },
 ]
 
 // A warm white, so the chapter reads as a reset between the print and the website chapters
@@ -1142,70 +1157,15 @@ function OrderButton({ children, onClick, disabled = false, quiet = false }: { c
   )
 }
 
-// What's printed when the order is placed, as FOLD's own receipt sets it
-function OrderReceipt({ items, total, at }: { items: OrderItem[]; total: number; at: Date }) {
-  const date = `${String(at.getDate()).padStart(2, '0')}.${String(at.getMonth() + 1).padStart(2, '0')}.${at.getFullYear()}`
-  const time = `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`
-  const rule = <p aria-hidden className="my-[7%] border-t border-dashed border-[var(--ink)]/35" />
-  return (
-    <div
-      className="fold-mono relative bg-[#fbf8f2] px-[9%] pb-[16%] pt-[10%] text-[10px] leading-[1.6] text-[var(--ink)] shadow-[0_30px_50px_-30px_rgba(21,19,17,0.5)] @4xl:text-[11px]"
-      style={{ clipPath: 'polygon(0 0, 100% 0, 100% 97.5%, 95% 99.5%, 90% 97.5%, 85% 99.5%, 80% 97.5%, 75% 99.5%, 70% 97.5%, 65% 99.5%, 60% 97.5%, 55% 99.5%, 50% 97.5%, 45% 99.5%, 40% 97.5%, 35% 99.5%, 30% 97.5%, 25% 99.5%, 20% 97.5%, 15% 99.5%, 10% 97.5%, 5% 99.5%, 0 97.5%)' }}
-    >
-      <Mark className="w-[46%] text-[var(--ink)]" />
-      <p className="mt-[8%] opacity-80">
-        Coffee / Food /
-        <br />
-        People / Neighbourhood
-      </p>
-      {rule}
-      <div className="flex justify-between">
-        <p className="font-medium">Order {ORDER_NUMBER}</p>
-        <p className="text-right opacity-80">
-          {date}
-          <br />
-          {time}
-        </p>
-      </div>
-      <p className="opacity-80">Take away</p>
-      {rule}
-      {items.map((it) => (
-        <p key={it.id} className="flex justify-between gap-3">
-          <span>1&nbsp;&nbsp;{it.name}</span>
-          <span className="tabular-nums">{euro(it.price)}</span>
-        </p>
-      ))}
-      {rule}
-      <p className="flex justify-between font-medium">
-        <span>Total</span>
-        <span className="tabular-nums">{euro(total)}</span>
-      </p>
-      {rule}
-      <p>
-        Good things ahead.
-        <br />
-        Thank you!
-      </p>
-      <p className="mt-[8%] opacity-70">
-        Athens
-        <br />
-        Every
-        <br />
-        Day.
-      </p>
-      {/* signed off with the fold: its corner turned back to signal */}
-      <Corner className="bottom-[3%] right-0 rotate-[-90deg]" size="18%" />
-    </div>
-  )
-}
-
 // 07 — Order ahead. The FOLD app does one thing: gets the order ready before you arrive. It works
-// here: four steps inside the phone, each opening like a corner of paper unfolding (never
-// sliding), and the receipt printing beside the phone once the order is placed. Prices are
-// the printed menu's; the photographs, colours and mark are the identity's own.
+// here: four steps inside the phone, moving the way a phone's own app does (each screen pushed
+// in from the right over the last, which draws back and dims; a new order goes back the other
+// way). Prices are the printed menu's; the photographs, colours and mark are the identity's own.
 function Order() {
   const reduced = useReducedMotion()
   const [step, setStep] = useState(0)
+  // 1 going on to the next screen, -1 going back to the first
+  const [dir, setDir] = useState(1)
   const [coffee, setCoffee] = useState<OrderItem | null>(null)
   // undefined: not chosen yet; null: "no thanks"
   const [pastry, setPastry] = useState<OrderItem | null | undefined>(undefined)
@@ -1215,26 +1175,33 @@ function Order() {
   const readyAt = placedAt ? new Date(placedAt.getTime() + 6 * 60 * 1000) : null
   const clock = (d: Date) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 
+  const go = (next: number) => {
+    setDir(next > step ? 1 : -1)
+    setStep(next)
+  }
   const restart = () => {
-    setStep(0)
+    go(0)
     setCoffee(null)
     setPastry(undefined)
     setPlacedAt(null)
   }
-  // each screen opens from its top-right corner, like paper unfolding
-  const unfold = reduced
-    ? { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 } }
+  // A phone app's navigation: the next screen is pushed in from the right edge over the current
+  // one, which draws back a third of the way and dims under it; going back reverses it. Both
+  // move at once, on the same curve.
+  const push = { duration: 0.5, ease: [0.32, 0.72, 0, 1] as const }
+  const screens = reduced
+    ? { enter: { opacity: 0 }, shown: { opacity: 1 }, leave: { opacity: 0 } }
     : {
-        initial: { clipPath: 'polygon(100% 0%, 100% 0%, 100% 0%, 100% 0%)' },
-        animate: { clipPath: 'polygon(-60% 0%, 100% 0%, 100% 160%, -60% 160%)', transition: { duration: 0.75, ease: [0.65, 0, 0.2, 1] as const } },
-        exit: { opacity: 0, transition: { duration: 0.15 } },
+        enter: (d: number) => (d > 0 ? { x: '100%', filter: 'brightness(1)', zIndex: 2 } : { x: '-30%', filter: 'brightness(0.8)', zIndex: 1 }),
+        shown: { x: '0%', filter: 'brightness(1)', transition: push },
+        leave: (d: number) => (d > 0 ? { x: '-30%', filter: 'brightness(0.8)', zIndex: 1, transition: push } : { x: '100%', zIndex: 2, transition: push }),
       }
 
   return (
     <section className="relative overflow-hidden bg-[var(--kraft-light)] px-[5cqw] pb-[12cqh] pt-[10cqh]">
       <div className="grid items-center gap-y-[7cqh] @2xl:grid-cols-12 @2xl:gap-x-[3cqw]">
         {/* the story, and where the order is */}
-        <div className="@2xl:col-span-4">
+        <div className="@2xl:col-span-5 @2xl:col-start-2">
           <Head n="07" title="Order ahead" />
           <In kind="lines" className="fold-display mt-5" style={{ fontSize: 'max(34px, 6.4cqw)' }}>
             <span>
@@ -1245,8 +1212,7 @@ function Order() {
             </span>
           </In>
           <In kind="rise" as="p" className="mt-[3cqh] max-w-[38ch] text-[13px] leading-relaxed text-[var(--ink)]/75">
-            The app does one thing: gets your order ready before you arrive. Four taps, prices in mono like the receipt, and
-            every screen opens like a fold — it never slides in.
+            The app does one thing: gets your order ready before you arrive. Four taps, prices in mono like the receipt.
           </In>
           <ol className="fold-mono mt-[5cqh] space-y-[1.4cqh] text-[10px] @4xl:text-[11px]">
             {ORDER_STEPS.map((s, i) => {
@@ -1272,7 +1238,7 @@ function Order() {
         </div>
 
         {/* the phone: the app itself */}
-        <div className="flex justify-center @2xl:col-span-4">
+        <div className="flex justify-center @2xl:col-span-5">
           <In kind="rise" delay={0.1}>
             <div className="[--ph:min(680px,175cqw)] @2xl:[--ph:min(760px,82cqh)]">
               <PhoneFrame height="var(--ph)">
@@ -1291,9 +1257,17 @@ function Order() {
                     </div>
                   </div>
 
-                  <div className="relative flex-1" aria-live="polite">
-                    <AnimatePresence mode="wait" initial={false}>
-                      <motion.div key={step} {...unfold} className="absolute inset-0 flex flex-col px-[6cqw] pb-[7cqw]">
+                  <div className="relative flex-1 overflow-hidden" aria-live="polite">
+                    <AnimatePresence initial={false} custom={dir}>
+                      <motion.div
+                        key={step}
+                        custom={dir}
+                        variants={screens}
+                        initial="enter"
+                        animate="shown"
+                        exit="leave"
+                        className="absolute inset-0 flex flex-col bg-[var(--paper)] px-[6cqw] pb-[7cqw] shadow-[-12px_0_24px_-12px_rgba(21,19,17,0.35)]"
+                      >
                         {step === 0 && (
                           <>
                             {/* the cup, on kraft, the fold entering from its corner */}
@@ -1316,7 +1290,7 @@ function Order() {
                                 <OrderRow key={c.id} item={c} picked={coffee?.id === c.id} onPick={() => setCoffee(c)} />
                               ))}
                             </div>
-                            <OrderButton disabled={!coffee} onClick={() => setStep(1)}>
+                            <OrderButton disabled={!coffee} onClick={() => go(1)}>
                               <span>Next — pastry</span>
                               <span>→</span>
                             </OrderButton>
@@ -1343,7 +1317,7 @@ function Order() {
                                 No thanks, just the coffee
                               </button>
                             </div>
-                            <OrderButton disabled={pastry === undefined} onClick={() => setStep(2)}>
+                            <OrderButton disabled={pastry === undefined} onClick={() => go(2)}>
                               <span>Review order</span>
                               <span>→</span>
                             </OrderButton>
@@ -1377,7 +1351,7 @@ function Order() {
                             <OrderButton
                               onClick={() => {
                                 setPlacedAt(placedNow())
-                                setStep(3)
+                                go(3)
                               }}
                             >
                               <span>Pay € {euro(total)}</span>
@@ -1402,7 +1376,7 @@ function Order() {
                               at <span className="text-[var(--signal)]">{clock(readyAt)}.</span>
                             </p>
                             <p className="mt-[4cqw] text-[3.4cqw] leading-relaxed opacity-75">
-                              Show this at the counter. Your receipt is on its way.
+                              Show this at the counter.
                             </p>
                             <p className="fold-mono mt-[3cqw] text-[2.8cqw] opacity-60">Good things ahead.</p>
                             <OrderButton quiet onClick={restart}>
@@ -1420,30 +1394,6 @@ function Order() {
           </In>
         </div>
 
-        {/* the receipt: printed beside the phone once the order is placed */}
-        <div className="@2xl:col-span-4 @2xl:pl-[2cqw]">
-          <div className="mx-auto max-w-[300px] @2xl:mx-0 @2xl:max-w-[240px] @4xl:max-w-[270px]">
-            <div aria-hidden className="h-[3px] rounded-full bg-[var(--ink)]/80" />
-            <AnimatePresence mode="wait">
-              {step === 3 && placedAt ? (
-                <motion.div
-                  key="receipt"
-                  initial={reduced ? { opacity: 0 } : { clipPath: 'inset(0 0 100% 0)' }}
-                  animate={reduced ? { opacity: 1 } : { clipPath: 'inset(0 0 0% 0)', transition: { duration: 1.8, ease: [0.4, 0, 0.6, 1], delay: 0.35 } }}
-                  exit={{ opacity: 0, transition: { duration: 0.25 } }}
-                  className="-mt-px @2xl:rotate-[2deg]"
-                  style={{ transformOrigin: 'top center' }}
-                >
-                  <OrderReceipt items={items} total={total} at={placedAt} />
-                </motion.div>
-              ) : (
-                <motion.p key="slot" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fold-mono mt-3 text-[10px] text-[var(--ink)]/45">
-                  The receipt prints here.
-                </motion.p>
-              )}
-            </AnimatePresence>
-          </div>
-        </div>
       </div>
     </section>
   )
