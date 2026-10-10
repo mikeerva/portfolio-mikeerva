@@ -111,6 +111,8 @@ void main() { gl_Position = vec4(aPos, 0.0, 1.0); }
 // uWork is 0 in the Hero, which keeps the plain metaball shading.
 const FRAG = `
 precision highp float;
+// How far either side of the outline (field pixels) the distance is kept
+#define EDGE 4.0
 uniform vec4 uBlobs[${COUNT}];
 uniform vec3 uColor;
 uniform float uUnit;
@@ -195,19 +197,19 @@ void main() {
     gh += e * gi;
     sz += e * b.w;
   }
-  // The edge is the field's soft band (0.98–1.02), widened to at least a canvas pixel either
-  // side, measured from the field's slope: drawn below the screen's density and scaled up
-  // (phones), the outline stays smooth instead of stepping. Only ever widened, never narrowed,
-  // so inside the mass, where the slope spikes at each blob's centre, nothing changes.
-  // The field's change across one screen pixel: its gradient carried through the warp. Worked
-  // out here rather than read from the GPU's screen-space derivatives, which not every phone
-  // provides; without them a warped outline steps.
+  // This pass runs at a reduced resolution and doesn't draw the outline itself: it writes how far
+  // each pixel is from it (in this pass's pixels, positive inside), and a second pass at the
+  // screen's resolution draws the edge from that (COMPOSE). The distance changes evenly across
+  // the edge, so scaled up it stays exact, and the outline is as sharp as the screen however
+  // coarse this pass is. The field's change across one pixel is its gradient carried through the
+  // warp, worked out here rather than read from the GPU's derivatives, which not every phone has.
   float perPx = max(length(g * J), 1e-6);
-  float a = max(smoothstep(0.98, 1.02, f), smoothstep(-1.0, 1.0, (f - 1.0) / perPx));
+  float sd = (f - 1.0) / perPx;
   // The near lobes' field over an open panel (below), with the same measure
   float lobes = ff + min(fb * 0.35, 0.45) * smoothstep(0.15, 0.5, ff);
-  float lobesPx = perPx;
-  if (a <= 0.0) {
+  // Far outside: nothing to shade. Just outside, the colour is still worked out, so the edge
+  // blends into the mass's own colour rather than into black when it's scaled up.
+  if (sd < -EDGE) {
     gl_FragColor = vec4(0.0);
     return;
   }
@@ -225,15 +227,15 @@ void main() {
     N = normalize(mix(Nm, Nf, uWork * smoothstep(0.05, 0.55, z)));
   }
   if (uPanelA > 0.0) {
-    float inside = 1.0 - smoothstep(-1.0, 1.0, panelDist(gl_FragCoord.xy));
     // Over the panel only the near lobes' own outline is drawn, so where they cross its edge
     // they keep their rounded contour. Where a near lobe is already present, the mass behind
     // lends it some of its field, so it swells out of the mass's edge instead of sitting there
     // as a separate disc; on its own, the mass behind never shows over the panel. What it lends
     // is capped, so a large mass right behind the edge can't stretch the lobe into a flat slab.
-    // Its outline is widened to a pixel the same way as the mass's edge
-    float behind = 1.0 - max(smoothstep(0.98, 1.02, lobes), smoothstep(-1.0, 1.0, (lobes - 1.0) / lobesPx));
-    a *= 1.0 - inside * behind * uPanelA;
+    // Kept: outside the panel's rectangle, or within a near lobe; the opening fades in and out
+    // with uPanelA
+    float keep = max(panelDist(gl_FragCoord.xy), (lobes - 1.0) / perPx);
+    sd = min(sd, mix(EDGE, clamp(keep, -EDGE, EDGE), uPanelA));
   }
 
   vec3 L = normalize(vec3(-0.45, 0.55, 0.7));
@@ -242,7 +244,24 @@ void main() {
   float rim = pow(1.0 - N.z, 3.0);
   float near = clamp(1.0 + depth * 0.35, 0.65, 1.4);
   vec3 col = uColor * (0.2 + 0.9 * diff) * near + spec * 0.45 + uColor * rim * 0.2;
-  gl_FragColor = vec4(clamp(col, 0.0, 1.0) * a, a);
+  gl_FragColor = vec4(clamp(col, 0.0, 1.0), clamp(0.5 + sd / (2.0 * EDGE), 0.0, 1.0));
+}
+`
+
+// The second pass, at the screen's resolution: the field pass's colour, cut by its distance to
+// the outline, read with linear filtering and turned into this pass's pixels. The edge is about
+// a pixel and a half wide, however coarse the field pass ran.
+const COMPOSE = `
+precision highp float;
+uniform sampler2D uField;
+uniform vec2 uOut;
+uniform float uRatio;
+void main() {
+  vec4 t = texture2D(uField, gl_FragCoord.xy / uOut);
+  // Decoded from the field pass's alpha: 2 x EDGE field pixels across its range
+  float sd = (t.a - 0.5) * 8.0 * uRatio;
+  float a = smoothstep(-0.75, 0.75, sd);
+  gl_FragColor = vec4(t.rgb * a, a);
 }
 `
 
@@ -275,23 +294,46 @@ export function FluidCanvas({ mode }: { mode: FluidMode }) {
     const gl = canvas.getContext('webgl', { antialias: false, alpha: true, premultipliedAlpha: true })
     if (!gl) return
 
-    const program = gl.createProgram()!
+    // Two passes: the field (the heavy one, at a reduced resolution, into a texture) and the
+    // composite (light, at the screen's resolution, onto the canvas)
+    const link = (frag: string) => {
+      const p = gl.createProgram()!
+      gl.attachShader(p, compile(gl, gl.VERTEX_SHADER, VERT))
+      gl.attachShader(p, compile(gl, gl.FRAGMENT_SHADER, frag))
+      // Both draw the same triangle from attribute 0
+      gl.bindAttribLocation(p, 0, 'aPos')
+      gl.linkProgram(p)
+      return p
+    }
+    let program: WebGLProgram
+    let compose: WebGLProgram
     try {
-      gl.attachShader(program, compile(gl, gl.VERTEX_SHADER, VERT))
-      gl.attachShader(program, compile(gl, gl.FRAGMENT_SHADER, FRAG))
-      gl.linkProgram(program)
+      program = link(FRAG)
+      compose = link(COMPOSE)
     } catch (err) {
       console.warn('Fluid background unavailable', err)
       return
     }
-    gl.useProgram(program)
 
     const buffer = gl.createBuffer()
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer)
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW)
-    const aPos = gl.getAttribLocation(program, 'aPos')
-    gl.enableVertexAttribArray(aPos)
-    gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0)
+    gl.enableVertexAttribArray(0)
+    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0)
+
+    // The field pass's target: colour, and distance to the outline in alpha
+    const fieldTex = gl.createTexture()
+    gl.bindTexture(gl.TEXTURE_2D, fieldTex)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+    const fieldFb = gl.createFramebuffer()
+    gl.useProgram(compose)
+    gl.uniform1i(gl.getUniformLocation(compose, 'uField'), 0)
+    const uOut = gl.getUniformLocation(compose, 'uOut')
+    const uRatio = gl.getUniformLocation(compose, 'uRatio')
+    gl.useProgram(program)
 
     const uBlobs = gl.getUniformLocation(program, 'uBlobs')
     const uUnit = gl.getUniformLocation(program, 'uUnit')
@@ -305,12 +347,14 @@ export function FluidCanvas({ mode }: { mode: FluidMode }) {
     const uFrag = gl.getUniformLocation(program, 'uFrag')
     gl.uniform3fv(gl.getUniformLocation(program, 'uColor'), hexToRgb(config.blobColor))
 
-    // Render resolution (canvas px per CSS px). Every pixel runs the whole blob loop, so this is
-    // what the frame costs; a device that can't keep up steps down. Never below one canvas pixel
-    // per CSS pixel: on a phone's dense screen, anything coarser is scaled up so far that the
-    // outline shows its pixels.
-    const maxScale = Math.min(window.devicePixelRatio, 1.5)
-    const minScale = Math.min(window.devicePixelRatio, 1)
+    // Resolutions, in pixels per CSS px. The canvas (the composite) matches the screen, up to 2.5.
+    // The field pass is what the frame costs, every pixel running the whole blob loop: phones,
+    // whose screens are dense and GPUs modest, start it lower, and any device that can't keep up
+    // steps it down. Its resolution no longer shows at the outline, only in the shading.
+    const touch = window.matchMedia('(pointer: coarse)').matches
+    const outScale = Math.min(window.devicePixelRatio, 2.5)
+    const maxScale = Math.min(outScale, touch ? 1 : 1.5)
+    const minScale = Math.min(outScale, 0.75)
     // Diagnosis on a real device: ?scale=<n> fixes the resolution, ?debug shows what the GPU does
     const query = new URLSearchParams(location.search)
     const forced = Number(query.get('scale')) || 0
@@ -318,12 +362,20 @@ export function FluidCanvas({ mode }: { mode: FluidMode }) {
     // Cached so the frame never reads layout
     let cw = 1
     let ch = 1
+    // The field pass's size (device px of that pass)
+    let fw = 1
+    let fh = 1
     const resize = () => {
       cw = Math.max(canvas.clientWidth, 1)
       ch = Math.max(canvas.clientHeight, 1)
-      canvas.width = Math.round(cw * scale)
-      canvas.height = Math.round(ch * scale)
-      gl.viewport(0, 0, canvas.width, canvas.height)
+      canvas.width = Math.round(cw * outScale)
+      canvas.height = Math.round(ch * outScale)
+      fw = Math.max(Math.round(cw * scale), 1)
+      fh = Math.max(Math.round(ch * scale), 1)
+      gl.bindTexture(gl.TEXTURE_2D, fieldTex)
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, fw, fh, 0, gl.RGBA, gl.UNSIGNED_BYTE, null)
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fieldFb)
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, fieldTex, 0)
     }
     const ro = new ResizeObserver(resize)
     ro.observe(canvas)
@@ -461,8 +513,9 @@ highp ${hp ? `${hp.precision} bits, 2^${hp.rangeMax}` : 'none'} · mediump ${mp 
       pace(now - last, now)
       const dt = Math.min((now - last) / 1000, 0.05)
       last = now
-      const w = canvas.width
-      const h = canvas.height
+      // The field pass's pixels: everything placed on it is in these
+      const w = fw
+      const h = fh
       const m = Math.max(w, h)
       const current = modeRef.current
       const portrait = ch > cw
@@ -819,6 +872,7 @@ highp ${hp ? `${hp.precision} bits, 2^${hp.rangeMax}` : 'none'} · mediump ${mp 
         object.onProjectsFrame?.(out)
       }
 
+      gl.useProgram(program)
       // One object unit of depth, in device px
       gl.uniform1f(uUnit, unit)
       // Back in the Hero the Work weights only approach zero; snap them, so the shader's
@@ -859,12 +913,23 @@ highp ${hp ? `${hp.precision} bits, 2^${hp.rangeMax}` : 'none'} · mediump ${mp 
       // Hidden under the loading screen or the open menu, it holds its last frame. A few frames
       // are always drawn, so the shader is compiled and warm before anything is shown.
       drawn++
-      if (!(object.covered || object.menuCovered) || drawn < 4) gl.drawArrays(gl.TRIANGLES, 0, 3)
+      if (!(object.covered || object.menuCovered) || drawn < 4) {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, fieldFb)
+        gl.viewport(0, 0, fw, fh)
+        gl.drawArrays(gl.TRIANGLES, 0, 3)
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+        gl.viewport(0, 0, canvas.width, canvas.height)
+        gl.useProgram(compose)
+        gl.bindTexture(gl.TEXTURE_2D, fieldTex)
+        gl.uniform2f(uOut, canvas.width, canvas.height)
+        gl.uniform1f(uRatio, canvas.width / fw)
+        gl.drawArrays(gl.TRIANGLES, 0, 3)
+      }
       if (debug) {
         fpsFrames++
         if (now - fpsAt > 1000) {
           debug.textContent = `${debugInfo}
-canvas ${canvas.width}x${canvas.height} · scale ${scale.toFixed(2)} · dpr ${window.devicePixelRatio} · ${Math.round((fpsFrames * 1000) / (now - fpsAt))} fps`
+canvas ${canvas.width}x${canvas.height} · field ${fw}x${fh} · scale ${scale.toFixed(2)} · dpr ${window.devicePixelRatio} · ${Math.round((fpsFrames * 1000) / (now - fpsAt))} fps`
           fpsFrames = 0
           fpsAt = now
         }
@@ -878,6 +943,9 @@ canvas ${canvas.width}x${canvas.height} · scale ${scale.toFixed(2)} · dpr ${wi
       cancelAnimationFrame(raf)
       ro.disconnect()
       gl.deleteBuffer(buffer)
+      gl.deleteFramebuffer(fieldFb)
+      gl.deleteTexture(fieldTex)
+      gl.deleteProgram(compose)
       gl.deleteProgram(program)
     }
   }, [])
