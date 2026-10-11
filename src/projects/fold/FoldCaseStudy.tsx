@@ -4,16 +4,16 @@ import { afterPanelOpens } from '../../lib/scene'
 import { ScrollerContext, useInView, useScrollProgress } from '../scroll'
 import { PHOTOS, photoSrc, type PhotoKey } from './assets'
 import './fold.css'
-import { Mark, FoldGraphic } from './FoldPrimitives'
-import { BrandSystem } from './BrandSystem'
-import { PackagingStudy } from './PackagingStudy'
+import { PATH, VIEWBOX } from './wordmark'
 
 // FOLD — Brand Identity / Hospitality, 2026.
-// The case study scrolls inside the project panel and is sized by it (cqw / cqh). Chapters:
-// 00 Opening · 01 The idea · 02 The wordmark · 03 Packaging · 04 Physical space ·
-// 05 Menu / print · 06 Social media · 07 Order ahead · 08 Motion principles · 09 Closing
+// The case study scrolls inside the project panel and is sized by it (cqw / cqh). It reads
+// brief → idea → system → applications → closing. Chapters:
+// 00 Opening · 01 The brief · 02 The idea · 03 The system · 04 The wordmark · 05 Packaging ·
+// 06 Physical space · 07 Print & menu · 08 Digital (social, order ahead) · 09 Motion · 10 Closing
 
 const LINE = 'Brunch / Bakery / Specialty coffee / All day'
+const ROLE = 'Role — strategy, identity, packaging, print, space, digital, motion'
 
 // The chapters' photographs start loading once the panel has opened, all of them, so they're
 // there before the reader scrolls to them; fetched during the opening they'd compete with it.
@@ -34,9 +34,10 @@ export function FoldCaseStudy() {
     <PhotosReady.Provider value={photosReady}>
       <article className="fold" aria-label="Fold — Brand identity case study">
         <Opening />
+        <Brief />
         <Idea />
+        <System />
         <Wordmark />
-        <BrandSystem />
         <Packaging />
         <Space />
         <Print />
@@ -50,6 +51,22 @@ export function FoldCaseStudy() {
 }
 
 // ---------------------------------------------------------------- building blocks
+
+// Decorative unless given a label: the wordmark appears dozens of times and the name is already
+// in the text around it, so a screen reader shouldn't read "FOLD" at every one
+function Mark({ className = '', viewBox = VIEWBOX, style, label }: { className?: string; viewBox?: string; style?: CSSProperties; label?: string }) {
+  return (
+    <svg
+      viewBox={viewBox}
+      className={className}
+      style={style}
+      fill="currentColor"
+      {...(label ? { role: 'img', 'aria-label': label } : { 'aria-hidden': true })}
+    >
+      <path fillRule="evenodd" d={PATH} />
+    </svg>
+  )
+}
 
 // `focus`: the point of the photograph kept in view when its box crops it (object-position)
 function Photo({ k, className = '', style, focus }: { k: PhotoKey; className?: string; style?: CSSProperties; focus?: string }) {
@@ -95,7 +112,7 @@ function In({
   style,
   children,
 }: {
-  as?: 'div' | 'p' | 'h2' | 'h3' | 'figure'
+  as?: 'div' | 'p' | 'h2' | 'h3' | 'figure' | 'li'
   kind?: 'rise' | 'open' | 'drop' | 'lines'
   delay?: number
   className?: string
@@ -168,7 +185,6 @@ function Opening() {
   return (
     // the photograph's own black, so where it ends there is no step in tone
     <section ref={ref} className="relative overflow-hidden bg-[#090806] text-[var(--paper)]" style={{ height: '100cqh', minHeight: 520 }}>
-      <h1 className="sr-only">FOLD — a personal brand identity concept</h1>
       {/* The campaign photograph, full bleed. Its black merges with the section's own black, so
           it has no visible edge. Wide panels: the whole hero, cropped to keep the cup on the
           right and the left side empty for the wordmark. Narrow panels: the lower part, so the
@@ -214,7 +230,7 @@ function Opening() {
       </div>
 
       <div className="fold-mono absolute inset-x-[5cqw] top-[4.5cqh] flex justify-between text-[10px] text-[var(--paper)]/60 @2xl:text-[11px]">
-        <span>Personal concept / FOLD</span>
+        <span>Case study 01 / 04</span>
         <span className="text-right">Brand identity / Hospitality / 2026</span>
       </div>
 
@@ -226,7 +242,7 @@ function Opening() {
         style={{ transform: 'translateY(calc(var(--p, 0) * -7cqh))' }}
       >
         <In kind="open" delay={0.35}>
-          <Mark className="w-full text-[var(--paper)]" />
+          <Mark label="FOLD" className="w-full text-[var(--paper)]" />
         </In>
         <In kind="lines" delay={0.6} className="fold-display mt-[3.5cqh]" style={{ fontSize: 'max(20px, 2.9cqw)' }}>
           <span>
@@ -236,98 +252,108 @@ function Opening() {
             <span className="text-[var(--signal)]">before it is a logo.</span>
           </span>
         </In>
-        {/* narrow panels: kept with the wordmark, clear of the photograph */}
-        <p className="fold-mono mt-[2.5cqh] max-w-[32ch] text-[10px] text-[var(--paper)]/55 @2xl:hidden">{LINE}</p>
+        {/* what it is and what was done, kept with the wordmark in the black, clear of the
+            photograph and of the corners of the panel */}
+        <p className="fold-mono mt-[2.5cqh] max-w-[36ch] text-[10px] text-[var(--paper)]/55 @2xl:mt-[3cqh] @2xl:text-[11px]">
+          {LINE}
+          <br />
+          <span className="text-[var(--paper)]/85">{ROLE}</span>
+        </p>
       </div>
 
-      <p className="fold-mono absolute bottom-[4.5cqh] left-[9cqw] hidden max-w-[32ch] text-[11px] text-[var(--paper)]/55 @2xl:block">
-        {LINE}
+      {/* where to go next */}
+      <p className="fold-mono absolute bottom-[4.5cqh] left-[9cqw] hidden text-[11px] text-[var(--paper)]/55 @2xl:block">
+        Scroll to see the system ↓
       </p>
     </section>
   )
 }
 
-// ---------------------------------------------------------------- 01 The idea
+// ---------------------------------------------------------------- 01 The brief
 
-// The way the city moves: an asymmetric spread. The concept column holds its place while the
-// city photograph and then the cup and bag pass beside it.
-const BEHAVIOUR = ['Grab', 'Carry', 'Open', 'Fold', 'Eat', 'Go']
+// What the project is, for whom, and how far it goes — short enough to read at a glance; the
+// idea itself is the next chapter's
+const BRIEF: [string, string][] = [
+  ['Context', 'A neighbourhood bakery and specialty coffee spot, open all day.'],
+  ['Challenge', 'Be recognisable on a receipt, a cup and a storefront alike — without becoming ornamental.'],
+  ['Approach', 'Build the identity on one physical action.'],
+]
+const FACTS = ['Hospitality', 'Athens', '2026', 'Personal concept', 'Identity system']
 
-const BRIEF = [
-  ['Audience', 'People picking up coffee and food as they move through the city.'],
-  ['Project scope', 'Visual identity, packaging, print, spatial applications and digital experience.'],
-  ['Context', 'Personal exploration. Applications visualise the proposed brand world.'],
-] as const
+function Brief() {
+  return (
+    <section className="bg-[var(--paper)] px-[5cqw] pb-[9cqh] pt-[10cqh]">
+      <Head n="01" title="The brief" />
+      <div className="mt-5 grid gap-[4cqh] @2xl:grid-cols-[1.3fr_1fr] @2xl:items-end @2xl:gap-[5cqw]">
+        <In kind="lines" className="fold-display" style={{ fontSize: 'max(32px, 5.6cqw)' }}>
+          <span>
+            <span>A brand for the</span>
+          </span>
+          <span>
+            <span className="text-[var(--signal)]">rhythm of the city.</span>
+          </span>
+        </In>
+        <In kind="rise" as="p" className="max-w-[44ch] text-[13px] leading-relaxed text-[var(--ink)]/75">
+          Coffee on the way to work, a pastry carried across the street, a wrapper opened on a bench, a quick bite before moving on.
+        </In>
+      </div>
+      <div className="mt-[7cqh] grid gap-[3.5cqh] border-t border-[var(--ink)]/15 pt-[3cqh] @2xl:grid-cols-3 @2xl:gap-[4cqw]">
+        {BRIEF.map(([label, text], i) => (
+          <In key={label} kind="rise" delay={i * 0.08}>
+            <p className="fold-mono text-[10px] text-[var(--ink)]/50">{label}</p>
+            <p className="mt-2 max-w-[34ch] text-[15px] leading-snug @2xl:text-[16px]">{text}</p>
+          </In>
+        ))}
+      </div>
+      <p className="fold-mono mt-[6cqh] flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-[var(--ink)]/55 @2xl:text-[11px]">
+        {FACTS.map((f, i) => (
+          <span key={f}>
+            {f}
+            {i < FACTS.length - 1 && <span className="ml-4 opacity-40">·</span>}
+          </span>
+        ))}
+      </p>
+    </section>
+  )
+}
+
+// ---------------------------------------------------------------- 02 The idea
+
+// One gesture, repeated all day: the statement across the top, then the city photograph with
+// the reasoning and the objects beside it (both columns start and end level), then the day
+// itself as a row of times, the fold among them.
+const DAY: [string, string][] = [
+  ['08:40', 'Grab'],
+  ['08:45', 'Carry'],
+  ['10:15', 'Open'],
+  ['10:16', 'Fold'],
+  ['13:00', 'Eat'],
+  ['13:20', 'Go'],
+]
 
 function Idea() {
   const carry = useScrollProgress<HTMLDivElement>('cross')
   return (
-    <section className="relative bg-[var(--paper)] px-[5cqw] pb-[10cqh] pt-[8cqh]">
-      {/* the brief: what the project is, for whom, and how far it goes */}
-      <div className="fold-brief" aria-label="Project brief">
-        <div>
-          <p className="fold-mono fold-eyebrow">Personal concept / 2026</p>
-          <h2 className="fold-display">
-            An everyday ritual,
-            <br />
-            given an identity.
-          </h2>
-          <p className="fold-copy">
-            FOLD is a self-initiated identity concept for an Athens neighbourhood bakery and coffee spot. The brief: make the everyday act
-            of picking up coffee recognisable, from the first sign to the last piece of paper.
-          </p>
-        </div>
-        <dl>
-          {BRIEF.map(([term, text]) => (
-            <div key={term}>
-              <dt className="fold-mono">{term}</dt>
-              <dd>{text}</dd>
-            </div>
-          ))}
-        </dl>
-      </div>
-      <div className="grid grid-cols-1 gap-[7cqh] @2xl:grid-cols-[0.9fr_1.5fr_0.78fr] @2xl:gap-x-[3cqw] @2xl:gap-y-0">
-        {/* LEFT — the concept, held while the photographs pass */}
-        <div className="@2xl:sticky @2xl:top-[9cqh] @2xl:self-start">
-          <Head n="01" title="The idea" />
-          <In kind="lines" className="fold-display mt-[5cqh] whitespace-nowrap" style={{ fontSize: 'max(38px, 4.5cqw)' }}>
-            <span>
-              <span>Built around</span>
-            </span>
-            <span>
-              <span>the way the</span>
-            </span>
-            <span>
-              <span className="text-[var(--signal)]">city moves.</span>
-            </span>
-          </In>
-          <In kind="rise" delay={0.2} className="mt-[5cqh] max-w-[34ch] text-[13px] leading-relaxed text-[#111111]/75 @2xl:text-[14px]">
-            <p>
-              FOLD lives in the everyday movements of the city — grabbing a coffee, carrying a bag, opening a wrapper, eating on
-              the move and getting on with the day.
-            </p>
-            <p className="mt-3">A folded corner becomes the visual link between these everyday moments.</p>
-          </In>
-          <div className="mt-[5cqh] border-t border-[#111111]/15 pt-[3cqh]">
-            <In kind="lines" className="fold-display flex flex-wrap gap-x-[1.1cqw] gap-y-1" style={{ fontSize: 'max(18px, 2.1cqw)' }}>
-              {BEHAVIOUR.map((word, i) => (
-                <span key={word}>
-                  <span className={word === 'Fold' ? 'text-[var(--signal)]' : ''}>
-                    {word}
-                    {i < BEHAVIOUR.length - 1 && <span className="ml-[1.1cqw] text-[#111111]/25">/</span>}
-                  </span>
-                </span>
-              ))}
-            </In>
-          </div>
-          <p className="fold-mono mt-[5cqh] hidden max-w-[30ch] text-[10px] text-[#111111]/55 @2xl:block">{LINE}</p>
-        </div>
+    <section
+      className="relative px-[5cqw] pb-[12cqh] pt-[10cqh]"
+      style={{ background: '#F4EDE2', color: '#111111', ['--signal' as string]: '#E6452E', ['--ink' as string]: '#111111' }}
+    >
+      <Head n="02" title="The idea" />
+      <In kind="lines" className="fold-display mt-5" style={{ fontSize: 'max(34px, 6.4cqw)' }}>
+        <span>
+          <span>One small gesture,</span>
+        </span>
+        <span>
+          <span className="text-[var(--signal)]">repeated all day.</span>
+        </span>
+      </In>
 
-        {/* CENTRE — the city: the largest picture, drifting a touch slower than the page */}
-        <div ref={carry} className="@2xl:mt-[10cqh]">
+      <div className="mt-[7cqh] grid gap-[5cqh] @2xl:grid-cols-12 @2xl:gap-x-[3cqw]">
+        {/* the city: the largest picture, drifting a touch slower than the page */}
+        <div ref={carry} className="@2xl:col-span-7">
           <In kind="drop">
-            <div data-scroll style={{ transform: 'translateY(calc((var(--p, 0.5) - 0.5) * 5cqh))' }}>
-              <Photo k="cityCarry" className="aspect-[2/3] w-full" />
+            <div data-scroll style={{ transform: 'translateY(calc((var(--p, 0.5) - 0.5) * 4cqh))' }}>
+              <Photo k="cityCarry" className="aspect-[4/5] w-full" />
             </div>
           </In>
           <p className="fold-mono mt-3 flex justify-between text-[10px] text-[#111111]/55">
@@ -336,92 +362,327 @@ function Idea() {
           </p>
         </div>
 
-        {/* RIGHT — the objects: smaller, later, lower */}
-        <div className="ml-[22%] @2xl:ml-0 @2xl:mt-[54cqh]">
-          <In kind="drop" delay={0.2}>
-            <Photo k="cityCupBag" className="aspect-[2/3] w-full" />
+        {/* the reasoning at the photograph's top, the objects at its foot */}
+        <div className="flex flex-col justify-between gap-[5cqh] @2xl:col-span-5">
+          <In kind="rise" className="max-w-[40ch]">
+            <p className="text-[15px] leading-snug @2xl:text-[17px]">
+              Closing a bag, turning back a lid, tucking a corner in to carry it further — the city does it a hundred times
+              before noon.
+            </p>
+            <p className="mt-4 text-[13px] leading-relaxed text-[#111111]/70">
+              FOLD makes that gesture the brand. Nothing is added on top: the package closes, the corner shows the signal colour,
+              and the customer opens it again.
+            </p>
           </In>
-          <p className="fold-mono mt-3 flex justify-between text-[10px] text-[#111111]/55">
-            <span>Cup + bag</span>
-            <span>Open / Fold</span>
-          </p>
-          <p className="fold-mono mt-[4cqh] max-w-[30ch] text-[10px] text-[#111111]/55 @2xl:hidden">{LINE}</p>
+          <div className="ml-[22%] @2xl:ml-[18%]">
+            <In kind="drop" delay={0.15}>
+              <Photo k="cityCupBag" className="aspect-[4/5] w-full" />
+            </In>
+            <p className="fold-mono mt-3 flex justify-between text-[10px] text-[#111111]/55">
+              <span>Cup + bag</span>
+              <span>Open / Fold</span>
+            </p>
+          </div>
         </div>
+      </div>
+
+      {/* the day, as a row of times */}
+      <ol className="mt-[9cqh] grid grid-cols-3 border-t border-[#111111]/20 @2xl:grid-cols-6">
+        {DAY.map(([time, verb], i) => (
+          <In
+            key={verb}
+            as="li"
+            kind="rise"
+            delay={i * 0.06}
+            className={`border-b border-[#111111]/20 py-[2.4cqh] pr-3 @2xl:border-b-0 ${verb === 'Fold' ? 'text-[var(--signal)]' : ''}`}
+          >
+            <p className={`fold-mono text-[10px] ${verb === 'Fold' ? '' : 'text-[#111111]/50'}`}>{time}</p>
+            <p className="fold-display mt-1" style={{ fontSize: 'max(22px, 2.6cqw)' }}>
+              {verb}
+            </p>
+          </In>
+        ))}
+      </ol>
+      <p className="fold-mono mt-[4cqh] text-[10px] text-[#111111]/55 @2xl:text-[11px]">{LINE}</p>
+    </section>
+  )
+}
+
+// ---------------------------------------------------------------- 03 The system
+
+// The identity's five rules, each shown by itself: what makes FOLD a system rather than a logo
+// and a palette. Each tile is drawn live from the same parts the rest of the page uses.
+const RULES: { name: string; note: string }[] = [
+  { name: 'The corner', note: 'Marks where to open, close or hold.' },
+  { name: 'The signal', note: 'Appears only when something folds.' },
+  { name: 'The wordmark', note: 'Compressed, connected, released.' },
+  { name: 'The materials', note: 'Paper, kraft, concrete, ink, sunlight.' },
+  { name: 'The type', note: 'Display for presence, mono for operations.' },
+]
+
+const MATERIALS = [
+  { name: 'Paper', hex: '#EFE8DC', bg: 'var(--paper)', fg: 'var(--ink)', image: '/projects/fold/material-paper.png' },
+  { name: 'Kraft', hex: '#C8A77C', bg: 'var(--kraft)', fg: 'var(--ink)', image: '/projects/fold/material-kraft.png' },
+  { name: 'Concrete', hex: '#B9B2A7', bg: 'var(--concrete)', fg: 'var(--ink)', image: '/projects/fold/material-concrete.png' },
+  { name: 'Ink', hex: '#151311', bg: 'var(--ink)', fg: 'var(--paper)', image: '/projects/fold/material-ink.png' },
+  { name: 'Signal', hex: '#E8462A', bg: 'var(--signal)', fg: 'var(--ink)', image: '/projects/fold/material-signal.png' },
+]
+
+const TYPEFACES = [
+  { role: 'Voice', face: 'Anton', sample: 'Good things inside.', className: 'fold-display', size: 'max(22px, 2.6cqw)' },
+  { role: 'Information', face: 'IBM Plex Mono', sample: 'Order 0247 — € 3.80', className: 'fold-mono', size: 'max(13px, 1.25cqw)' },
+  { role: 'Reading', face: 'Inter', sample: 'Coffee in hand. The city ahead.', className: '', size: 'max(16px, 1.6cqw)' },
+]
+
+// One rule's picture, square
+function RuleArt({ i }: { i: number }) {
+  const systemImages = [
+    '/projects/fold/system-corner.png',
+    '/projects/fold/system-signal.png',
+    '/projects/fold/system-wordmark.png',
+    '/projects/fold/system-materials.png',
+    '/projects/fold/system-type.png',
+  ]
+  return <img src={systemImages[i]} alt="" className="size-full object-cover" loading="lazy" decoding="async" />
+
+  if (i === 0)
+    return (
+      <div className="relative size-full overflow-hidden bg-[var(--paper)]" style={{ backgroundImage: 'radial-gradient(circle at 25% 18%, rgba(255,255,255,.68), transparent 34%), repeating-linear-gradient(12deg, rgba(89,69,48,.055) 0 1px, transparent 1px 5px)' }}>
+        <span className="absolute right-0 top-0 size-[78%] bg-[var(--signal)] shadow-[-12px_18px_22px_-18px_rgba(21,19,17,.9)]" style={{ clipPath: 'polygon(0 0, 100% 100%, 0 88%)' }} />
+        <span className="absolute right-0 top-0 size-[78%] bg-[#d8d0c2]" style={{ clipPath: 'polygon(0 0, 100% 100%, 100% 0)' }} />
+        <span className="absolute right-0 top-0 size-[78%] bg-[var(--signal)]" style={{ clipPath: 'polygon(0 0, 100% 100%, 0 88%)', transform: 'translate(0, 1px)' }} />
+      </div>
+    )
+  if (i === 1)
+    return (
+      <div className="relative size-full overflow-hidden bg-[var(--ink)]">
+        {/* the corner turned back: the signal is what it uncovers */}
+        <span className="absolute inset-0 bg-[var(--signal)]" style={{ clipPath: 'polygon(30% 0, 100% 0, 100% 70%)' }} />
+        <span className="absolute inset-0 bg-[#d9cfbf]" style={{ clipPath: 'polygon(30% 0, 100% 70%, 30% 70%)' }} />
+        <span className="absolute inset-x-0 bottom-0 h-[17%] bg-[#171513]" />
+      </div>
+    )
+  if (i === 2)
+    return (
+      <div className="relative grid size-full place-items-center overflow-hidden bg-[var(--kraft-light)] px-[8%]" style={{ backgroundImage: 'radial-gradient(circle at 20% 20%, rgba(255,255,255,.28), transparent 38%), repeating-linear-gradient(0deg, rgba(74,48,25,.045) 0 1px, transparent 1px 4px)' }}>
+        <Mark className="w-full text-[var(--ink)]" />
+        <span className="absolute bottom-[8%] left-[9%] fold-mono text-[8px] text-[var(--ink)]/55">ONE WORD / ONE SYSTEM</span>
+      </div>
+    )
+  if (i === 3)
+    return (
+      <div className="flex size-full overflow-hidden">
+        {MATERIALS.map((m) => (
+          <span key={m.name} className="relative flex-1" style={{ background: m.bg }}>
+            <span className="absolute inset-0 opacity-20" style={{ backgroundImage: 'repeating-linear-gradient(90deg, rgba(255,255,255,.4) 0 1px, transparent 1px 5px)' }} />
+          </span>
+        ))}
+      </div>
+    )
+  return (
+    <div className="relative flex size-full flex-col justify-between overflow-hidden bg-[var(--paper)] p-[10%]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,.35), rgba(255,255,255,.35)), repeating-linear-gradient(0deg, transparent 0 23%, rgba(21,19,17,.10) 23% 23.4%, transparent 23.4% 46%)' }}>
+      <span className="fold-display leading-none" style={{ fontSize: 'max(48px, 6cqw)' }}>
+        Aa
+      </span>
+      <span className="fold-mono absolute right-[9%] top-[12%] text-[8px] text-[var(--ink)]/60">ANTON<br />ALL CAPS<br />TIGHT LEADING</span>
+      <span className="fold-display leading-none" style={{ fontSize: 'max(25px, 3.1cqw)' }}>Aa</span>
+      <span className="fold-mono text-[10px]">08:00 — 18:00</span>
+    </div>
+  )
+}
+
+function System() {
+  return (
+    <section className="bg-[#f7f3ec] px-[5cqw] pb-[11cqh] pt-[10cqh]">
+      <Head n="03" title="The system" />
+      <div className="mt-5 grid gap-[4cqh] @2xl:grid-cols-[1.3fr_1fr] @2xl:items-end @2xl:gap-[5cqw]">
+        <In kind="lines" className="fold-display" style={{ fontSize: 'max(32px, 5.6cqw)' }}>
+          <span>
+            <span>Five rules.</span>
+          </span>
+          <span>
+            <span className="text-[var(--signal)]">Every touchpoint.</span>
+          </span>
+        </In>
+        <In kind="rise" as="p" className="max-w-[42ch] text-[13px] leading-relaxed text-[var(--ink)]/75">
+          The same few parts, used the same way, from a 14 mm receipt to a shopfront. Learn them once and the brand is recognisable
+          anywhere.
+        </In>
+      </div>
+
+      {/* the rules */}
+      <div className="mt-[7cqh] grid grid-cols-2 gap-x-[3cqw] gap-y-[5cqh] @2xl:grid-cols-5 @2xl:gap-x-[1.6cqw]">
+        {RULES.map((r, i) => (
+          <In key={r.name} as="figure" kind="rise" delay={i * 0.07}>
+            <div className="aspect-square overflow-hidden ring-1 ring-inset ring-[var(--ink)]/10">
+              <RuleArt i={i} />
+            </div>
+            <figcaption className="mt-3">
+              <span className="fold-mono text-[10px] text-[var(--ink)]/45">{String(i + 1).padStart(2, '0')}</span>
+              <span className="fold-display mt-1 block" style={{ fontSize: 'max(17px, 1.7cqw)' }}>
+                {r.name}
+              </span>
+              <span className="fold-mono mt-1 block text-[10px] leading-snug text-[var(--ink)]/60">{r.note}</span>
+            </figcaption>
+          </In>
+        ))}
+      </div>
+
+      {/* the palette, as overlapping sheets */}
+      <div className="mt-[9cqh]">
+        <p className="fold-mono text-[10px] text-[var(--ink)]/55 @2xl:text-[11px]">Colour — one ink and one signal, on the materials</p>
+        <div className="mt-4 flex">
+          {MATERIALS.map((m, i) => (
+            <In
+              key={m.name}
+              kind="rise"
+              delay={i * 0.08}
+              className="relative flex aspect-[1/1.25] flex-1 flex-col justify-between p-[1.4cqw] shadow-[-18px_0_30px_-22px_rgba(21,19,17,0.55)] ring-1 ring-inset ring-[var(--ink)]/10 @2xl:aspect-[1/0.9]"
+              style={{ backgroundColor: m.bg, backgroundImage: `linear-gradient(rgba(247,243,236,.08), rgba(247,243,236,.08)), url(${m.image})`, backgroundSize: 'cover', backgroundPosition: 'center', color: m.fg, marginLeft: i ? '-1.6cqw' : 0, zIndex: i }}
+            >
+              <span className="fold-mono text-[9px] opacity-70 @2xl:text-[10px]">{m.hex}</span>
+              <span className="fold-display" style={{ fontSize: 'max(14px, 2.2cqw)' }}>
+                {m.name}
+              </span>
+            </In>
+          ))}
+        </div>
+      </div>
+
+      {/* the type */}
+      <div className="mt-[8cqh] grid gap-[4cqh] border-t border-[var(--ink)]/15 pt-[3cqh] @2xl:grid-cols-3 @2xl:gap-[4cqw]">
+        {TYPEFACES.map((t) => (
+          <div key={t.face}>
+            <p className="fold-mono text-[10px] text-[var(--ink)]/50">
+              {t.role} — {t.face}
+            </p>
+            <p className={`mt-3 ${t.className}`} style={{ fontSize: t.size }}>
+              {t.sample}
+            </p>
+          </div>
+        ))}
       </div>
     </section>
   )
 }
 
-// ---------------------------------------------------------------- 02 The wordmark
+// ---------------------------------------------------------------- 04 The wordmark
+
+// The design choices visible in the finished wordmark.
+const WORDMARK_CHOICES: [string, string][] = [
+  ['A compact silhouette', 'Heavy strokes and close spacing give the name a distinct outline. Four letters become a single, recognisable signature.'],
+  ['A softer edge', 'Rounded outer corners bring warmth to the bold shape. Crisp inner cuts keep the lettering defined.'],
+  ['Part of the everyday', 'Ink on paper. A stamp on kraft. A name above the door. The surface changes; the signature stays familiar.'],
+]
+
+// The same mark from the shopfront down to the receipt, side by side and shrinking
+const SCALE: { where: string; size: string; w: string }[] = [
+  { where: 'Shopfront', size: '2400 mm', w: '30%' },
+  { where: 'Carrier bag', size: '120 mm', w: '17%' },
+  { where: 'Cup', size: '40 mm', w: '10%' },
+  { where: 'Receipt', size: '14 mm', w: '5%' },
+]
+
+const IN_USE: { k: PhotoKey; label: string; offset: string }[] = [
+  { k: 'markSticker', label: 'Sticker / signal accent', offset: '@2xl:mt-0' },
+  { k: 'markCup', label: 'Cup / 40 mm', offset: '@2xl:mt-[12cqh]' },
+  { k: 'markBag', label: 'Bag stamp / one colour', offset: '@2xl:mt-[4cqh]' },
+  { k: 'markReceipt', label: 'Receipt / 14 mm', offset: '@2xl:mt-[16cqh]' },
+]
 
 function Wordmark() {
   return (
-    <section className="bg-[var(--paper)] px-[5cqw] pb-[12cqh] pt-[10cqh]">
-      <Head n="02" title="The wordmark" />
-      <In kind="open" className="mt-[7cqh]">
-        <Mark className="w-full text-[var(--ink)]" />
-      </In>
-
-      <div className="mt-[9cqh] grid gap-[5cqw] @2xl:grid-cols-2">
-        {/* O → L */}
-        <figure>
-          <In kind="rise" className="overflow-hidden bg-[var(--kraft-light)] py-[5cqh]">
-            <div className="relative mx-auto w-full">
-              {/* the O and the L alone: the F ends at 217, the D starts at 727 */}
-              <Mark viewBox="220 -10 500 445" className="block h-auto w-full text-[var(--ink)]" />
-              {/* where the O meets the L */}
-              <span aria-hidden className="absolute inset-y-[-3cqh] w-px bg-[var(--signal)]" style={{ left: `${((496.3 - 220) / 500) * 100}%` }} />
-            </div>
+    <section className="bg-[var(--ink)] px-[5cqw] pb-[12cqh] pt-[10cqh] text-[var(--paper)]">
+      <div className="grid gap-[4cqh] @2xl:grid-cols-[1.3fr_1fr] @2xl:items-end @2xl:gap-[5cqw]">
+        <div>
+          <Head n="04" title="The wordmark" light />
+          <In kind="lines" className="fold-display mt-5" style={{ fontSize: 'max(34px, 6.4cqw)' }}>
+            <span>
+              <span>Four letters,</span>
+            </span>
+            <span>
+              <span className="text-[var(--signal)]">pressed into one.</span>
+            </span>
           </In>
-          <figcaption className="mt-4 grid grid-cols-[auto_1fr] gap-x-5">
-            <span className="fold-display" style={{ fontSize: 'max(20px, 3.4cqw)' }}>
-              O → L
-            </span>
-            <span className="text-[13px] leading-relaxed text-[var(--ink)]/75">
-              Close, but separate. The O ends at 490.2 units; the L begins at 502.4. A 12.2-unit gap keeps both forms distinct within the dense wordmark.
-            </span>
-          </figcaption>
-        </figure>
-        {/* L → D */}
-        <figure>
-          <In kind="rise" delay={0.12} className="overflow-hidden bg-[var(--ink)] py-[5cqh]">
-            <div className="relative mx-auto w-full">
-              {/* the L and the D alone: the O ends at 490 */}
-              <Mark viewBox="496 -10 514 445" className="block h-auto w-full text-[var(--paper)]" />
-              {/* the open gap between the L and the D */}
-              <span aria-hidden className="absolute inset-y-[-3cqh] w-px bg-[var(--signal)]" style={{ left: `${((720.5 - 496) / 514) * 100}%` }} />
-            </div>
-          </In>
-          <figcaption className="mt-4 grid grid-cols-[auto_1fr] gap-x-5">
-            <span className="fold-display" style={{ fontSize: 'max(20px, 3.4cqw)' }}>
-              L → D
-            </span>
-            <span className="text-[13px] leading-relaxed text-[var(--ink)]/75">
-              A consistent rhythm. The L ends at 714.4 units; the D begins at 726.7. The 12.3-unit gap echoes O–L. The open space above the L gives this pair its different visual weight.
-            </span>
-          </figcaption>
-        </figure>
+        </div>
+        <In kind="rise" as="p" className="max-w-[44ch] text-[13px] leading-relaxed text-[var(--paper)]/65">
+          Drawn the way the packaging works: separate parts, pressed closed until they hold together. Heavy, condensed and set
+          tight, so it stays one shape on a cup, a bag or a shopfront.
+        </In>
       </div>
 
-      <p className="fold-mono mt-[5cqh] text-[10px] text-[var(--ink)]/65">Master drawing / 1000 × 425 units / uniform scaling</p>
+      {/* the mark and the choices behind its character */}
+      <div className="mt-[9cqh] grid gap-[6cqh] @2xl:grid-cols-12 @2xl:items-center @2xl:gap-x-[4cqw]">
+        <div className="w-[80%] overflow-x-clip px-[3%] @2xl:col-span-7 @2xl:w-auto">
+          <Mark label="FOLD" className="block w-full text-[var(--paper)]" />
+        </div>
+        <div className="border-t border-[var(--paper)]/15 @2xl:col-span-5">
+          <p className="fold-mono pt-[3cqh] text-[10px] text-[var(--paper)]/55 @2xl:text-[11px]">Behind the mark</p>
+          {WORDMARK_CHOICES.map(([name, note], i) => (
+            <In key={name} kind="rise" delay={i * 0.08} className="mt-[3cqh] grid grid-cols-[auto_1fr] gap-x-4">
+              <span className="fold-mono pt-1 text-[10px] text-[var(--paper)]/45">{String(i + 1).padStart(2, '0')}</span>
+              <div>
+                <p className="fold-display" style={{ fontSize: 'max(18px, 1.7cqw)' }}>
+                  {name}
+                </p>
+                <p className="mt-1 max-w-[46ch] text-[13px] leading-relaxed text-[var(--paper)]/65">{note}</p>
+              </div>
+            </In>
+          ))}
+        </div>
+      </div>
+
+      {/* one mark, every size */}
+      <div className="mt-[10cqh]">
+        <p className="fold-mono text-[10px] text-[var(--paper)]/55 @2xl:text-[11px]">Scale — one drawing, no small-size version</p>
+        <div className="mt-[3cqh] flex items-end gap-[3%] border-b border-[var(--paper)]/15 pb-[3cqh]">
+          {SCALE.map((s, i) => (
+            <In key={s.where} kind="rise" delay={i * 0.07} className="shrink-0" style={{ width: s.w }}>
+              <Mark className="block w-full text-[var(--paper)]" />
+            </In>
+          ))}
+        </div>
+        <div className="mt-3 flex gap-[3%]">
+          {SCALE.map((s) => (
+            <p key={s.where} className="fold-mono shrink-0 whitespace-nowrap text-[9px] @2xl:text-[10px]" style={{ width: s.w }}>
+              <span className="block">{s.where}</span>
+              <span className="block text-[var(--paper)]/50">{s.size}</span>
+            </p>
+          ))}
+        </div>
+      </div>
+
+      {/* in use, at scale */}
+      <div className="mt-[10cqh] grid grid-cols-2 gap-x-[3cqw] gap-y-[5cqh] @2xl:grid-cols-4 @2xl:gap-x-[2cqw]">
+        {IN_USE.map(({ k, label, offset }, i) => (
+          <In key={k} as="figure" kind="rise" delay={i * 0.07} className={offset}>
+            <Photo k={k} className="aspect-[3/4] w-full" />
+            <figcaption className="fold-mono mt-3 text-[10px] text-[var(--paper)]/55">{label}</figcaption>
+          </In>
+        ))}
+      </div>
     </section>
   )
 }
 
-// ---------------------------------------------------------------- 03 Packaging
+// ---------------------------------------------------------------- 05 Packaging
 
 // The one move every piece makes
 const MOVE: [string, string][] = [
-  ['Recognise', 'One wordmark across the range'],
-  ['Carry', 'Paper, board and everyday objects'],
-  ['Open', 'Colour draws attention to the edge'],
+  ['Close', 'Protects the product'],
+  ['Fold', 'Makes the brand action'],
+  ['Signal', 'Shows where to open'],
 ]
 
 // The range, set out like a catalogue: same tile, same caption, so the fold is what differs
 const PACKS: { k: PhotoKey; name: string; note: string }[] = [
   { k: 'cupHot', name: 'Cup', note: '8 oz' },
   { k: 'kraftBag', name: 'Carrier bag', note: 'Kraft' },
+  { k: 'boxOrange', name: 'Corner seal', note: 'Signal' },
   { k: 'pastryBag', name: 'Pastry bag', note: 'Sticker seal' },
+  { k: 'napkins', name: 'Napkin', note: 'Printed' },
+  { k: 'stickers', name: 'Sticker', note: 'Signal' },
+  { k: 'boxOpen', name: 'Pastry box', note: 'Opened' },
   { k: 'wrapPaper', name: 'Wrap', note: 'Printed paper' },
 ]
 
@@ -430,18 +691,19 @@ function Packaging() {
     <section className="bg-[var(--kraft-light)] px-[5cqw] pb-[12cqh] pt-[10cqh]">
       <div className="grid gap-[4cqh] @2xl:grid-cols-[1.3fr_1fr] @2xl:items-end @2xl:gap-[5cqw]">
         <div>
-          <Head n="03" title="Packaging" />
+          <Head n="05" title="Packaging" />
           <In kind="lines" className="fold-display mt-5" style={{ fontSize: 'max(34px, 7.6cqw)' }}>
             <span>
-              <span>Made to</span>
+              <span>Folded,</span>
             </span>
             <span>
-              <span>go with you.</span>
+              <span>not decorated.</span>
             </span>
           </In>
         </div>
         <In kind="rise" as="p" className="max-w-[46ch] text-[13px] leading-relaxed text-[var(--ink)]/75">
-          Different objects, one visual language. The cup, carrier and pastry box share the same dense mark and coloured planes. The box uses a lid and sticker seal; bags and wrappers bring their own folds.
+          Every piece makes the same move: close, fold, signal. The objects don’t look alike — they behave alike, so the brand is
+          still there when the paper is crumpled.
         </In>
       </div>
 
@@ -470,12 +732,10 @@ function Packaging() {
         </div>
       </div>
 
-      <PackagingStudy />
-
       {/* the range */}
       <div className="fold-mono mt-[11cqh] flex justify-between border-t border-[var(--ink)]/20 pt-3 text-[10px] text-[var(--ink)]/55 @2xl:text-[11px]">
-        <span>Selected applications</span>
-        <span>{PACKS.length} pieces / one identity</span>
+        <span>The range</span>
+        <span>{PACKS.length} pieces / 1 move</span>
       </div>
       <div className="mt-[4cqh] grid grid-cols-2 gap-x-[3cqw] gap-y-[5cqh] @2xl:grid-cols-4 @2xl:gap-x-[2cqw]">
         {PACKS.map(({ k, name, note }, i) => (
@@ -497,28 +757,25 @@ function Packaging() {
   )
 }
 
-// ---------------------------------------------------------------- 04 Physical space
-
-const MATERIALS = [
-  { name: 'Concrete', hex: '#B9B2A7', bg: 'var(--concrete)', fg: 'var(--ink)' },
-  { name: 'Kraft', hex: '#C8A77C', bg: 'var(--kraft)', fg: 'var(--ink)' },
-  { name: 'Paper', hex: '#EFE8DC', bg: 'var(--paper)', fg: 'var(--ink)' },
-  { name: 'Charcoal', hex: '#151311', bg: 'var(--ink)', fg: 'var(--paper)' },
-  { name: 'Signal', hex: '#E8462A', bg: 'var(--signal)', fg: 'var(--ink)' },
-]
+// ---------------------------------------------------------------- 06 Physical space
 
 function Space() {
   return (
     <section className="bg-[var(--ink)] pb-[12cqh] pt-[8cqh] text-[var(--paper)]">
       {/* the running head in the dark above the storefront, where it reads */}
-      <Head n="04" title="Physical space" light className="mb-[4cqh] px-[5cqw]" />
+      <div className="mb-[4cqh] grid gap-3 px-[5cqw] @2xl:grid-cols-[1.3fr_1fr] @2xl:items-end @2xl:gap-[5cqw]">
+        <Head n="06" title="Physical space" light />
+        <p className="max-w-[44ch] text-[13px] leading-relaxed text-[var(--paper)]/65">
+          At the scale of a building, the fold frames — entrances, corners, counters — without decorating.
+        </p>
+      </div>
       <In kind="open">
         {/* at the photograph's own proportions, so it is never cropped, whatever the screen */}
         <Photo k="storefront" className="aspect-[2/1] w-full" />
       </In>
       <div className="grid gap-[5cqw] px-[5cqw] pt-[8cqh] @2xl:grid-cols-[1.45fr_1fr]">
-        {/* on wide panels it fills its row, as tall as the column beside it, so no empty block
-            is left under it */}
+        {/* on wide panels it fills its row, as tall as the column beside it, so no empty block is
+            left under it; the sign on its left stays in view */}
         <In kind="drop">
           <Photo k="counter" focus="12% 50%" className="aspect-[4/3] w-full @2xl:aspect-auto @2xl:h-full" />
         </In>
@@ -535,44 +792,25 @@ function Space() {
             </span>
           </In>
           <p className="max-w-[40ch] text-[13px] leading-relaxed text-[var(--paper)]/65">
-            Concrete, dark framing and warm light extend the material palette. The wordmark anchors the storefront; folded colour planes connect signage, menus and takeaway packaging.
+            A counter, not a stage. Raw concrete and steel carry the paper colours; signage is printed, not lit; the signal
+            orange appears only where something folds — on the A-frame, the boxes, the corner of the menu.
           </p>
           <In kind="rise" delay={0.1} className="ml-auto w-[54%]">
             <Photo k="aFrame" className="aspect-[3/4] w-full" />
           </In>
         </div>
       </div>
-      {/* the material palette, as overlapping planes */}
-      <div className="mt-[10cqh] px-[5cqw]">
-        <p className="fold-mono text-[10px] text-[var(--paper)]/55">Materials / colour</p>
-        <div className="mt-4 flex">
-          {MATERIALS.map((m, i) => (
-            <In
-              key={m.name}
-              kind="rise"
-              delay={i * 0.08}
-              className="relative flex aspect-[1/1.5] flex-1 flex-col justify-between p-[1.4cqw] shadow-[-18px_0_30px_-20px_rgba(0,0,0,0.6)] ring-1 ring-inset ring-[var(--paper)]/12"
-              style={{ background: m.bg, color: m.fg, marginLeft: i ? '-2.2cqw' : 0, zIndex: i }}
-            >
-              <span className="fold-mono text-[9px] opacity-70 @2xl:text-[10px]">{m.hex}</span>
-              <span className="fold-display" style={{ fontSize: 'max(14px, 2.4cqw)' }}>
-                {m.name}
-              </span>
-            </In>
-          ))}
-        </div>
-      </div>
     </section>
   )
 }
 
-// ---------------------------------------------------------------- 05 Menu / print
+// ---------------------------------------------------------------- 07 Print & menu
 
 // A printed piece's caption: its number in the set, what it is, and a note on it
 function Piece({ n, name, note, light = false }: { n: string; name: string; note: string; light?: boolean }) {
   return (
     <figcaption className={`fold-mono mt-3 grid grid-cols-[auto_1fr] gap-x-3 text-[10px] ${light ? 'text-[var(--paper)]' : 'text-[var(--ink)]'}`}>
-      <span className="opacity-45">05.{n}</span>
+      <span className="opacity-45">07.{n}</span>
       <span>
         {name}
         <span className="block opacity-55">{note}</span>
@@ -581,46 +819,116 @@ function Piece({ n, name, note, light = false }: { n: string; name: string; note
   )
 }
 
-// A shorter print edit: one functional layout, one return visit, one staff application.
+// The printed set, laid out like sheets on a table: tall and wide pieces alternating on an
+// uneven grid, each unfolding into view, each drifting at its own rate as the chapter passes so
+// the set has depth. The phrase the poster carries sits in the middle of it, set large.
 function Print() {
+  const ref = useScrollProgress<HTMLElement>('cross')
+  const drift = (d: number): CSSProperties => ({ transform: `translateY(calc((var(--p, 0.5) - 0.5) * ${d}cqh))` })
   return (
-    <section className="fold-editorial bg-[#d8d1c6]">
-      <Head n="05" title="Menu / print" />
-      <div className="fold-section-intro">
-        <h2 className="fold-display fold-section-title">Read it.<br /><span>Keep it.</span></h2>
-        <p className="fold-copy">Three different jobs for the identity: help someone choose, invite them back, and connect the people behind the counter to the brand.</p>
+    <section ref={ref} className="relative overflow-hidden bg-[#d8d1c6] px-[5cqw] pb-[14cqh] pt-[10cqh]">
+      <div className="grid gap-[4cqh] @2xl:grid-cols-[1.3fr_1fr] @2xl:items-end @2xl:gap-[5cqw]">
+        <div>
+          <Head n="07" title="Print & menu" />
+          <In kind="lines" className="fold-display mt-5" style={{ fontSize: 'max(34px, 7cqw)' }}>
+            <span>
+              <span>Paper that</span>
+            </span>
+            <span>
+              <span className="text-[var(--signal)]">does what it says.</span>
+            </span>
+          </In>
+        </div>
+        <In kind="rise" as="p" className="max-w-[44ch] text-[13px] leading-relaxed text-[var(--ink)]/75">
+          Mostly type and paper. The wordmark leads, the mono line informs, and the corner adds recognition without interrupting
+          the information — on the menu, the receipt, the card in a wallet, the shirt behind the counter.
+        </In>
       </div>
-      <In as="figure" kind="drop">
-        <Photo k="printMenuSpread" className="aspect-[3/2] w-full" />
-        <Piece n="1" name="Menu spread" note="Clear categories, readable prices, room to choose" />
-      </In>
-      <div className="mt-[6cqh] grid items-start gap-[4cqw] @2xl:grid-cols-2">
-        <In as="figure" kind="rise">
-          <Photo k="printLoyalty" className="aspect-[2/3] w-full" />
-          <Piece n="2" name="Loyalty card" note="Eight visits, one coffee — a reason to return" />
-        </In>
-        <In as="figure" kind="rise" delay={0.1} className="@2xl:mt-[8cqh]">
-          <Photo k="printTee" className="aspect-[1312/1199] w-full" />
-          <Piece n="3" name="Staff tee" note="The identity, worn" />
-          <p className="fold-copy mt-6">The large mark identifies. The small type explains. Colour stays at the edge, giving the rest of the composition space.</p>
-        </In>
+
+      {/* the menu: its cover, then opened */}
+      <div className="mt-[9cqh] grid grid-cols-12 items-start gap-x-[3cqw] gap-y-[6cqh]">
+        <figure data-scroll className="col-span-12 @2xl:col-span-5" style={drift(-8)}>
+          <In kind="open">
+            <div className="relative">
+              <Photo k="printMenuCover" className="aspect-[2/3] w-full shadow-[0_40px_70px_-40px_rgba(21,19,17,0.6)]" />
+              <Corner className="right-0 top-0" size="7cqw" />
+            </div>
+          </In>
+          <Piece n="1" name="Menu" note="Cover" />
+        </figure>
+        <figure data-scroll className="col-span-12 @2xl:col-span-7 @2xl:mt-[22cqh]" style={drift(5)}>
+          <In kind="drop">
+            <Photo k="printMenuSpread" className="aspect-[3/2] w-full shadow-[0_40px_70px_-40px_rgba(21,19,17,0.6)]" />
+          </In>
+          <Piece n="2" name="Menu" note="Spread — coffee, brunch, bakery, all day" />
+        </figure>
+      </div>
+
+      {/* what's handed over the counter */}
+      <div className="mt-[10cqh] grid grid-cols-12 items-start gap-x-[3cqw] gap-y-[6cqh]">
+        <figure data-scroll className="col-span-12 @2xl:col-span-7" style={drift(-4)}>
+          <In kind="drop">
+            <Photo k="printReceipt" className="aspect-[3/2] w-full shadow-[0_40px_70px_-40px_rgba(21,19,17,0.6)]" />
+          </In>
+          <Piece n="3" name="Receipt" note="Mono, torn edge, signed off in the voice" />
+        </figure>
+        <figure data-scroll className="col-span-10 col-start-3 @2xl:col-span-4 @2xl:col-start-9 @2xl:-mt-[6cqh] @2xl:rotate-[1.5deg]" style={drift(9)}>
+          <In kind="open">
+            <Photo k="printLoyalty" className="aspect-[2/3] w-full shadow-[0_40px_70px_-40px_rgba(21,19,17,0.6)]" />
+          </In>
+          <Piece n="4" name="Loyalty card" note="Eight folds, one coffee" />
+        </figure>
+      </div>
+
+      {/* on the wall and on the staff: the poster's line, set large between them */}
+      <div className="mt-[10cqh] grid grid-cols-12 items-center gap-x-[3cqw] gap-y-[6cqh]">
+        <figure data-scroll className="col-span-8 @2xl:col-span-4" style={drift(-7)}>
+          <In kind="open">
+            <Photo k="printPoster" className="aspect-[2/3] w-full shadow-[0_40px_70px_-40px_rgba(21,19,17,0.6)]" />
+          </In>
+          <Piece n="5" name="Poster" note="Window and wall" />
+        </figure>
+        <div className="col-span-12 @2xl:col-span-4">
+          <In kind="lines" className="fold-display" style={{ fontSize: 'max(40px, 6.2cqw)' }}>
+            <span>
+              <span>Good</span>
+            </span>
+            <span>
+              <span>things</span>
+            </span>
+            <span>
+              <span className="text-[var(--signal)]">ahead.</span>
+            </span>
+          </In>
+          <In kind="rise" delay={0.2} className="fold-mono mt-[3cqh] text-[10px] text-[var(--ink)]/60 @2xl:text-[11px]">
+            Coffee /<br />
+            Food /<br />
+            People /<br />
+            Neighbourhood
+          </In>
+        </div>
+        <figure data-scroll className="col-span-10 col-start-3 @2xl:col-span-4 @2xl:col-start-9 @2xl:mt-[16cqh]" style={drift(6)}>
+          <In kind="drop">
+            <Photo k="printTee" className="aspect-[1312/1199] w-full shadow-[0_40px_70px_-40px_rgba(21,19,17,0.6)]" />
+          </In>
+          <Piece n="6" name="Staff tee" note="The fold, worn" />
+        </figure>
       </div>
     </section>
   )
 }
 
-// ---------------------------------------------------------------- 06 Social media
+// ---------------------------------------------------------------- 08 Digital / social
 
 // One post of the feed. Every post's media is 4:5 (master 1080 × 1350); the layout never changes
 // whichever kind it holds.
 type SocialPost = { caption: string } & (
   | { id: string; type: 'placeholder' }
-  | { id: string; type: 'artwork' }
   | { id: string; type: 'image'; src: string; alt: string }
   | { id: string; type: 'video'; src: string; poster?: string; alt: string }
 )
 
-// Five selected posts: alternate everyday scenes with a quiet, vector-led brand statement.
+// The nine posts, in feed order. Each has visible campaign copy as well as descriptive alt text.
 // The feed measures itself, so the sticky journey follows the media and caption heights.
 const SOCIAL_POSTS: SocialPost[] = [
   {
@@ -632,25 +940,57 @@ const SOCIAL_POSTS: SocialPost[] = [
   },
   {
     id: '02',
-    type: 'image',
-    src: '/projects/fold/social/post-02.jpg',
-    caption: 'Athens, every day. Take your coffee along. The neighbourhood sets the pace.',
-    alt: 'Athens, Every Day — a woman walking through an Athens street with a FOLD coffee cup, red fold planes entering from the corner',
+    // the brand film, cut for the feed: six moves, each cut a fold, ending on the wordmark
+    type: 'video',
+    src: '/projects/fold/social/post-02-film.mp4',
+    poster: '/projects/fold/social/post-02-film.jpg',
+    caption: 'A verb in six moves. Grab, carry, open, fold, eat, go — every day in Athens.',
+    alt: 'Brand film: Grab, Carry, Open, Fold, Eat, Go — the cup, a coffee carried down the street, an opened pastry box, the boxes, a croissant and the storefront, each cut made by a paper corner folding back; it ends on the FOLD wordmark pressing together on signal orange',
   },
   {
     id: '03',
-    type: 'artwork',
-    caption: 'Good things inside. A simple promise, from the first coffee to the last crumb.',
+    type: 'image',
+    src: '/projects/fold/social/post-03-v2.jpg',
+    caption: 'Same routine. Different angle. A familiar coffee and a different street home.',
+    alt: 'Same Routine Different Angle — a FOLD poster on a weathered wall beside a coffee cup and the branded kraft carrier bag with flat paper handles and red-orange fold graphics',
   },
   {
     id: '04',
     type: 'image',
-    src: '/projects/fold/box-open.jpg',
-    caption: 'Lift the lid. Follow the crumbs. Good things inside, wherever the day takes you.',
-    alt: 'An open FOLD pastry box with a croissant, branded tissue and a round orange sticker seal',
+    src: '/projects/fold/social/post-04.jpg',
+    caption: 'One more layer. Paper, colour, a corner turned back. That is where the story unfolds.',
+    alt: 'One More Layer — a FOLD poster with the wordmark showing fold planes entering from multiple corners, kraft paper aesthetic',
   },
   {
     id: '05',
+    type: 'image',
+    src: '/projects/fold/social/post-05.jpg',
+    caption: 'Coffee first. Then a croissant. Leave a little room in your routine for both.',
+    alt: 'Same Routine Different Angle — a FOLD coffee with latte art on a sunlit stone surface, paired with a croissant, fold planes in the corner',
+  },
+  {
+    id: '06',
+    type: 'image',
+    src: '/projects/fold/social/post-06.jpg',
+    caption: 'Good things inside. Lift the corner, open the box, follow the crumbs.',
+    alt: 'Good Things Inside. — an opened FOLD kraft takeaway box on a sunlit stone floor, its red inner flaps folded back around wrapped pastries',
+  },
+  {
+    id: '07',
+    type: 'image',
+    src: '/projects/fold/social/post-07-v2.jpg',
+    caption: 'A coffee, a croissant, a moment in the sun. Good things come with a few crumbs.',
+    alt: 'Good things inside — the cream FOLD hero cup with a black lid and straw, a croissant and branded FOLD napkins on a sunlit stone counter',
+  },
+  {
+    id: '08',
+    type: 'image',
+    src: '/projects/fold/social/post-08-v2.jpg',
+    caption: 'One more layer for the road. Fold it, carry it, open it wherever the day takes you.',
+    alt: 'One more layer — the FOLD kraft carrier bag with paper handles, an open pastry box with branded tissue and a round seal, and printed FOLD napkins on a concrete counter',
+  },
+  {
+    id: '09',
     type: 'image',
     src: '/projects/fold/social/post-09-v2.jpg',
     caption: 'The light changes. The neighbourhood stays. Coffee, food, people. Athens, every day.',
@@ -670,9 +1010,9 @@ const SOCIAL_HIGHLIGHTS: { label: string; photo: PhotoKey; title: string; copy: 
 const SOCIAL_BG = '#f7f3ec'
 // How long the phone holds still before the feed starts and after it ends (of the view height)
 const SOCIAL_HOLD = 0.16
-// How far the feed travels for each pixel scrolled: a little faster than the page, so five posts
-// don't take five screens of scrolling
-const SOCIAL_RATE = 1.7
+// How far the feed travels for each pixel scrolled: faster than the page, so nine posts don't take
+// seven screens of scrolling
+const SOCIAL_RATE = 1.8
 // Below this panel width (px) there's no phone: the feed is laid out in the page itself
 const SOCIAL_NARROW = 672
 // The active label's colour, cycling through the identity's own colours
@@ -750,13 +1090,6 @@ function SocialMedia({ post }: { post: SocialPost }) {
   const ready = useContext(PhotosReady)
   return (
     <div className="relative aspect-[4/5] w-full overflow-hidden bg-[#ebe4d8]">
-      {post.type === 'artwork' && (
-        <div className="fold-social-artwork">
-          <Mark />
-          <p className="fold-display">Good<br />things<br />inside.</p>
-          <p className="fold-mono">Coffee / Bakery / Athens</p>
-        </div>
-      )}
       {post.type === 'placeholder' && (
         <div className="absolute inset-[5%] grid place-items-center border border-[var(--ink)]/12">
           {/* a small registration mark at the centre */}
@@ -974,11 +1307,18 @@ function Social() {
 
   const title = (
     <>
-      <Head n="06" title="Social media" />
-      <h3 className="fold-display mt-4" style={{ fontSize: 'max(30px, 4.6cqw)' }}>
-        An everyday<br />voice.
+      <Head n="08" title="Digital / social" />
+      {/* three short lines, so it stays in the index column, clear of the phone */}
+      <h3 className="fold-display mt-4" style={{ fontSize: 'max(28px, 3.6cqw)' }}>
+        The same
+        <br />
+        behaviour,
+        <br />
+        <span className="text-[var(--signal)]">faster.</span>
       </h3>
-      <p className="fold-mono mt-3 text-[10px] opacity-60">Five selected posts / concept feed</p>
+      <p className="mt-3 max-w-[30ch] text-[13px] leading-relaxed text-[var(--ink)]/70">
+        Online, the fold becomes a crop, a transition, a reveal.
+      </p>
     </>
   )
 
@@ -1041,19 +1381,23 @@ function Social() {
   )
 }
 
-// ---------------------------------------------------------------- 07 Order ahead
+// ---------------------------------------------------------------- 08 Digital / order ahead
 
 // The fold, as the packaging prints it: flat planes in the fold colours, entering from a corner
 // of whatever they sit on (top-right as drawn; turned for the other corners)
 function FoldPlanes({ corner = 'tr', className = '' }: { corner?: 'tr' | 'bl'; className?: string }) {
   return (
-    <div
+    <svg
       aria-hidden
+      viewBox="0 0 100 100"
+      preserveAspectRatio="none"
       className={`pointer-events-none absolute ${className}`}
       style={{ transform: corner === 'bl' ? 'rotate(180deg)' : undefined }}
     >
-      <FoldGraphic className="size-full" />
-    </div>
+      <polygon points="100,0 44,0 100,62" fill="var(--orange)" />
+      <polygon points="100,0 70,0 100,32" fill="var(--red)" />
+      <polygon points="100,32 100,62 80,42" fill="var(--deep-red)" />
+    </svg>
   )
 }
 
@@ -1185,7 +1529,7 @@ function Order() {
       <div className="grid items-center gap-y-[7cqh] @2xl:grid-cols-12 @2xl:gap-x-[3cqw]">
         {/* the story, and where the order is */}
         <div className="@2xl:col-span-5 @2xl:col-start-2">
-          <Head n="07" title="Order ahead" />
+          <Head n="08" title="Digital / order ahead" />
           <In kind="lines" className="fold-display mt-5" style={{ fontSize: 'max(34px, 6.4cqw)' }}>
             <span>
               <span>Order</span>
@@ -1195,7 +1539,8 @@ function Order() {
             </span>
           </In>
           <In kind="rise" as="p" className="mt-[3cqh] max-w-[38ch] text-[13px] leading-relaxed text-[var(--ink)]/75">
-            The app does one thing: gets your order ready before you arrive. Four taps, prices in mono like the receipt.
+            The fold, as an interaction. The app does one thing — gets your order ready before you arrive: four taps, prices in
+            mono like the receipt.
           </In>
           <ol className="fold-mono mt-[5cqh] space-y-[1.4cqh] text-[10px] @4xl:text-[11px]">
             {ORDER_STEPS.map((s, i) => {
@@ -1393,20 +1738,37 @@ function Order() {
   )
 }
 
-// ---------------------------------------------------------------- 08 Motion principles
+// ---------------------------------------------------------------- 09 Motion
+
+const MOTION: [string, string][] = [
+  ['Close', 'Elements gather into a compact shape.'],
+  ['Fold', 'A corner turns and shows the signal.'],
+  ['Open', 'The layout expands and settles. Nothing bounces.'],
+]
 
 function Motion() {
   const reveal = useInView<HTMLDivElement>(0.4)
   const settle = useInView<HTMLDivElement>(0.4)
   return (
     <section className="bg-[var(--ink)] px-[5cqw] pb-[12cqh] pt-[10cqh] text-[var(--paper)]">
-      <Head n="08" title="Motion principles" light />
+      <Head n="09" title="Motion principles" light />
       <h3 className="fold-display mt-5" style={{ fontSize: 'max(30px, 6.6cqw)' }}>
         Nothing bounces.
       </h3>
       <p className="mt-4 max-w-[46ch] text-[13px] leading-relaxed text-[var(--paper)]/60">
-        A corner reveals; a wordmark rises and settles. Movement follows the paper metaphor while the logo keeps its proportions.
+        Things move the way paper and dough do. Three moves cover almost everything the brand does on screen.
       </p>
+      <ol className="mt-[5cqh] grid gap-[3cqh] border-t border-[var(--paper)]/15 pt-[3cqh] @2xl:grid-cols-3 @2xl:gap-[4cqw]">
+        {MOTION.map(([name, note], i) => (
+          <li key={name}>
+            <span className="fold-mono text-[10px] text-[var(--paper)]/45">{String(i + 1).padStart(2, '0')}</span>
+            <span className="fold-display mt-1 block" style={{ fontSize: 'max(20px, 2.2cqw)' }}>
+              {name}
+            </span>
+            <span className="mt-1 block max-w-[32ch] text-[13px] leading-relaxed text-[var(--paper)]/60">{note}</span>
+          </li>
+        ))}
+      </ol>
       <div className="mt-[7cqh] grid gap-[5cqw] @2xl:grid-cols-2">
         <div ref={reveal} className="fold-demo-reveal">
           <div className="relative aspect-square overflow-hidden bg-[var(--ink)] ring-1 ring-[var(--paper)]/15">
@@ -1417,11 +1779,11 @@ function Motion() {
             <div className="flap absolute inset-0 bg-[#d9cfbf]" />
           </div>
           <p className="fold-mono mt-4 flex gap-3 text-[11px]">
-            <span className="step">Closed</span>
+            <span className="step">Close</span>
             <span className="opacity-40">→</span>
             <span className="step">Fold</span>
             <span className="opacity-40">→</span>
-            <span className="step">Reveal</span>
+            <span className="step">Signal</span>
           </p>
         </div>
         <div ref={settle} className="fold-demo-settle">
@@ -1429,7 +1791,7 @@ function Motion() {
             <Mark className="mark w-[70%] text-[var(--ink)]" />
           </div>
           <p className="fold-mono mt-4 flex gap-3 text-[11px]">
-            <span className="step">Gather</span>
+            <span className="step">Close</span>
             <span className="opacity-40">→</span>
             <span className="step">Open</span>
             <span className="opacity-40">→</span>
@@ -1441,12 +1803,12 @@ function Motion() {
   )
 }
 
-// ---------------------------------------------------------------- 09 Closing
+// ---------------------------------------------------------------- 10 Closing
 
 function Closing() {
   return (
     <section className="relative flex flex-col justify-between overflow-hidden bg-[var(--paper)] px-[5cqw] pb-[6cqh] pt-[10cqh]" style={{ minHeight: '100cqh' }}>
-      <Head n="09" title="Closing" />
+      <Head n="10" title="Closing" />
       <In kind="lines" className="fold-display my-[6cqh]" style={{ fontSize: 'max(52px, 15cqw)' }}>
         <span>
           <span>Good things</span>
@@ -1455,12 +1817,18 @@ function Closing() {
           <span className="text-[var(--signal)]">ahead.</span>
         </span>
       </In>
+      {/* the project in one statement */}
+      <In kind="rise" className="mb-[6cqh] max-w-[46ch] text-[15px] leading-relaxed @2xl:text-[17px]">
+        <p>One physical action, one complete identity.</p>
+        <p className="text-[var(--ink)]/60">It closes. It signals. It opens again.</p>
+      </In>
       <div className="flex flex-col gap-6 border-t border-[var(--ink)]/15 pt-[4cqh] @2xl:flex-row @2xl:items-end @2xl:justify-between">
         <In kind="open">
-          <Mark className="w-[48cqw] text-[var(--ink)] @2xl:w-[30cqw]" />
+          <Mark label="FOLD" className="w-[48cqw] text-[var(--ink)] @2xl:w-[30cqw]" />
         </In>
         <div className="fold-mono text-[10px] text-[var(--ink)]/60 @2xl:mr-[12cqw] @2xl:text-right @2xl:text-[11px]">
           <p>Fold — Brand identity / Hospitality — 2026</p>
+          <p className="mt-1">Strategy · Identity · Wordmark · Packaging · Print · Space · Digital · Motion</p>
           <p className="mt-1">{LINE}</p>
         </div>
       </div>

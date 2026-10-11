@@ -1,60 +1,50 @@
-# FOLD — personal concept
+# FOLD — case-study assets
 
-FOLD is a personal hospitality identity concept, confirmed by the designer. Applications
-visualise the proposed brand world; they are not evidence of a commissioned or built venue.
+Everything the FOLD case study (`src/projects/fold/`) loads from this folder.
 
-## Current presentation
+## Status: production set
 
-- Opening: the two-layer cup hero.
-- Idea: project brief, intended audience, scope and city-use photography.
-- Wordmark: the master drawing, with actual O–L (12.2 units) and L–D (12.3 units) gaps.
-- Visual system (02B): Anton / IBM Plex Mono / Inter, palette, fold construction, vector seal,
-  lockup and receipt. All wordmarks use `FoldPrimitives.tsx` and `wordmark.ts`.
-- Packaging: lead photograph, interactive closed / fold / open concept, explanatory net,
-  and four selected applications (cup, carrier, pastry bag, wrap).
-- Space: storefront, counter, A-frame and materials.
-- Print: menu spread, loyalty card and staff tee.
-- Social: five selected posts (four images and one live vector/type composition).
-- Order prototype, motion principles, closing.
+This folder contains the current FOLD case-study image set. The source of truth is the
+filename mapping in `src/projects/fold/assets.ts`; replace an asset in place when a newer
+approved version is available so the layout and case-study code do not need to change.
 
-The packaging net is an illustrative structural proposal, not a production dieline. Closure
-tabs, material thickness and tolerances require a physical prototype. It is distinct from
-the photographed lid-and-seal box applications. No production-ready claim is made.
+**To replace one:** save the final photograph over the file with the **same name**. Nothing
+in the code needs to change. Recommended sizes (and the alt text the page uses) are listed in
+`src/projects/fold/assets.ts`.
 
-## Assets and logo fidelity
+| File | Shows | Recommended |
+| --- | --- | --- |
+| croissant-macro.jpg | Laminated croissant torn open, layers, crumbs (07, the order app) | 2400 × 1650 |
 
-`src/projects/fold/assets.ts` maps available photography; not every available file appears in
-the current edit. Older images and alternate social masters are preserved for future use.
-The old four-photo wordmark scale strip is replaced by vector artwork, avoiding unverified
-millimetre-size claims. Redundant print and social shots are omitted from the presentation.
+The current set includes the opening hero (`hero-ground.jpg` and the cut-out
+`hero-cup.webp`), `city-carry.jpg` and `city-cup-bag.jpg` (01), the wordmark in use
+(`mark-*.jpg`, 02), packaging (03): the lead `pack-boxes.jpg` and the range — `cup-hot.jpg`,
+`kraft-bag.jpg`, `box-orange.jpg`, `pastry-bag-sticker.jpg`, `napkins.jpg`, `stickers.jpg`,
+`box-open.jpg`, `wrap-paper.jpg`; the physical space (04): `storefront.jpg` (2:1, shown at its
+own proportions, never cropped), `counter.jpg` (4:3) and `a-frame.jpg` (3:4); and menu / print
+(05): `print-*.jpg`.
 
-`fold-wordmark.svg` and `src/projects/fold/wordmark.ts` contain the same master path. The
-geometry is reused in all new flat artwork, phone branding, packaging drawings and motion.
-The wordmark motion uses translation and clipping, never horizontal stretching.
+## Social media (06)
 
-Retained raster mockups were visually inspected for lettering, orientation and cropping.
-Their baked-in wordmarks are illustrative: exact geometric matching cannot be certified
-from perspective photographs. No claim is made that these bitmaps were reprojected or
-retouched to the master. Exact artwork is shown separately in the visual-system section.
+The feed has nine **4:5** image posts with individual campaign captions. Files and copy are
+defined in `SOCIAL_POSTS` (`src/projects/fold/FoldCaseStudy.tsx`); each entry includes `caption`
+and descriptive `alt` text. Updated product-reference versions use `-v2` filenames.
+Video entries are also supported (`type: 'video'`, with an optional poster frame).
+The scroll journey measures the feed, including captions and expanded highlights.
 
-## Social media
+Four highlights — Coffee, Bakery, To go and Athens — reuse approved project photography.
+Their covers and short stories are defined in `SOCIAL_HIGHLIGHTS`. Each opens inline and can
+be closed with its close button; keyboard focus returns to the corresponding cover.
 
-`SOCIAL_POSTS` in `FoldCaseStudy.tsx` is the presentation source of truth:
+## Wordmark
 
-1. `social/post-01.jpg` — morning coffee.
-2. `social/post-02.jpg` — people / Athens.
-3. Vector wordmark and live type — Good things inside.
-4. `box-open.jpg` — a quiet product detail.
-5. `social/post-09-v2.jpg` — evening / neighbourhood.
+`fold-wordmark.svg` is the wordmark, **rebuilt as clean geometry** from the designer's master
+drawing: proportions, weights and spacing measured from it; straight edges straight, curves
+true arcs, outer corners softened by one small radius, inner corners sharp. It is a single
+path with its counters cut out (even-odd), so it takes any colour. The page uses the same
+path, from `PATH` / `VIEWBOX` in `src/projects/fold/wordmark.ts`.
 
-Coffee, Bakery, To go and Athens highlights retain their inline stories and keyboard focus
-return. The feed measures its travel from rendered content, including captions and highlights.
+## Typefaces
 
-## Loading and type
-
-The hero loads immediately. Other photos retain the existing `PhotosReady` gate and start
-loading after the project panel opens. Do not restore lazy loading without testing scroll
-arrival; it was previously changed to avoid visibly late images.
-
-Case-study fonts load through `src/projects/index.ts`. Headlines use Anton, utility labels
-IBM Plex Mono, and body copy Inter. The logo is always vector geometry, never typeset text.
+Headlines: Anton. Utility lines: IBM Plex Mono. Both from Google Fonts (see `index.html`).
+The wordmark itself is never set in a typeface.

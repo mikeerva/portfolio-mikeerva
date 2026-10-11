@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react'
 
+const FONT_WAIT_MS = 4000
+
 export function useResourceLoader() {
   const [progress, setProgress] = useState(0)
   const [isReady, setIsReady] = useState(false)
 
   useEffect(() => {
     let alive = true
-    // The only thing waited for is the fonts
+    // The only thing waited for is the fonts, and never for more than a few seconds: if they're
+    // slow or blocked the page goes on with its fallback faces rather than sit at 0%
     let target = 0
-    document.fonts.ready.catch(() => {}).then(() => (target = 100))
+    Promise.race([document.fonts.ready.catch(() => {}), new Promise((done) => setTimeout(done, FONT_WAIT_MS))]).then(() => (target = 100))
 
     // Displayed value eases toward the real value, so it never jumps and never runs ahead of it.
     let shown = 0
