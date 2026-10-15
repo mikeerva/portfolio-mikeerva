@@ -42,13 +42,14 @@ export const config = {
         shape: { length: 0.55, angle: 0.5, bend: 0.58, thick: 0.36, lean: 0.25, peak: 0.3, lobes: 2 },
         status: 'live',
       },
-      // Long, level and even: a shelf
+      // Curled round on itself, like a ring of light
       {
-        id: 'open-shelf',
-        name: 'Open Shelf',
-        discipline: 'Brand Identity / Public Library',
-        year: 2025,
-        shape: { length: 1.08, angle: 0.06, bend: -0.08, thick: 0.27, lean: 0.12, peak: 0.6, lobes: 1 },
+        id: 'halo',
+        name: 'Halo',
+        discipline: 'Brand Identity / Online Casino',
+        year: 2026,
+        shape: { length: 0.66, angle: 0.3, bend: 0.62, thick: 0.33, lean: 0.35, peak: 0.5, lobes: 0 },
+        status: 'live',
       },
       // A body trailing away into smaller and smaller echoes of itself
       {

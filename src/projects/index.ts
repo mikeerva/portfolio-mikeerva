@@ -24,7 +24,7 @@ function loadCaseFonts() {
 
 const loaders: Record<string, () => Promise<ComponentType>> = {
   fold: () => import('./fold/FoldCaseStudy').then((m) => m.FoldCaseStudy),
-  'open-shelf': () => import('./open-shelf/OpenShelfCaseStudy').then((m) => m.OpenShelfCaseStudy),
+  halo: () => import('./halo/HaloCaseStudy').then((m) => m.HaloCaseStudy),
   decay: () => import('./decay/DecayCaseStudy').then((m) => m.DecayCaseStudy),
   plinth: () => import('./plinth/PlinthCaseStudy').then((m) => m.PlinthCaseStudy),
   tripmate: () => import('./uiux/UIUXCaseStudies').then((m) => m.TripMateCaseStudy),
@@ -51,6 +51,7 @@ const MONO = ['400 1em "IBM Plex Mono"', '500 1em "IBM Plex Mono"']
 const ARCHIVO = ['400 1em Archivo', '700 1em Archivo']
 const fonts: Record<string, string[]> = {
   fold: ['400 1em Anton', ...MONO],
+  halo: ['800 1em Archivo', ...MONO],
   fittrack: [...ARCHIVO, ...MONO],
   drift: [...ARCHIVO, ...MONO],
 }

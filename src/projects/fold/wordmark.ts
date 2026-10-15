@@ -1,7 +1,7 @@
 // The FOLD wordmark (locked; see public/projects/fold/README.md).
 // Rebuilt as clean geometry from the designer's master drawing: its proportions, weights and
-// spacing measured, its straight edges straight, its curves true arcs, every outer corner softened
-// by the same small radius and every inner corner sharp. The counters are subpaths (even-odd),
+// spacing measured, with straight stems, curved counters and subtly softened outer corners.
+// The counters are subpaths (even-odd),
 // so the mark takes whatever colour it's set in. Letters, in its 1000 units: F 0–217,
 // O 224–490, L 502–714, D 727–1000.
 export const VIEWBOX = '0 0 1000 425'

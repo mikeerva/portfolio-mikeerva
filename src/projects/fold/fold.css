@@ -119,70 +119,75 @@
 .fold-lines > *:nth-child(5) > span { transition-delay: 0.32s; }
 .fold-lines > *:nth-child(6) > span { transition-delay: 0.4s; }
 
-/* ---------- motion principles (play while in view) ---------- */
+/* ---------- motion principles (09): loop while the chapter is in view ---------- */
 
-/* CLOSED → FOLD → REVEAL */
-.fold-demo-reveal .sheet {
-  animation: fold-sheet 6s cubic-bezier(0.65, 0, 0.2, 1) infinite paused;
+/* every move on one curve: quick out, long settle, no overshoot */
+.fold-motion { --move: cubic-bezier(0.32, 0.72, 0, 1); }
+.fold-motion :is(.fold-curve-x, .fold-curve-y, .fold-move-card, .fold-move-sheet, .fold-move-flap, .fold-move-word, .fold-move-edge) {
+  animation-iteration-count: infinite;
+  animation-play-state: paused;
 }
-.fold-demo-reveal .flap {
-  animation: fold-flap 6s cubic-bezier(0.65, 0, 0.2, 1) infinite paused;
-}
-.fold-demo-reveal .step {
-  animation: fold-step 6s linear infinite paused;
-}
-.fold-demo-reveal.is-in .sheet,
-.fold-demo-reveal.is-in .flap,
-.fold-demo-reveal.is-in .step {
+.fold-motion.is-playing :is(.fold-curve-x, .fold-curve-y, .fold-move-card, .fold-move-sheet, .fold-move-flap, .fold-move-word, .fold-move-edge) {
   animation-play-state: running;
 }
-/* The flap is the corner turned back: the part cut from the sheet, mirrored over the crease, so
-   the corner it leaves open shows the signal and the mark beneath. It unfolds again to loop. */
-@keyframes fold-flap {
-  0%, 14% { clip-path: polygon(100% 0, 100% 0, 100% 0); }
-  34%, 52% { clip-path: polygon(58% 0, 100% 42%, 58% 42%); }
-  70%, 92% { clip-path: polygon(0 0, 100% 100%, 0 100%); }
-  100% { clip-path: polygon(100% 0, 100% 0, 100% 0); }
-}
-@keyframes fold-sheet {
-  0%, 14% { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); }
-  34%, 52% { clip-path: polygon(0 0, 58% 0, 100% 42%, 100% 100%, 0 100%); }
-  70%, 92% { clip-path: polygon(0 0, 0 0, 100% 100%, 100% 100%, 0 100%); }
-  100% { clip-path: polygon(0 0, 100% 0, 100% 100%, 100% 100%, 0 100%); }
-}
-.fold-demo-reveal .step:nth-child(1) { animation-name: fold-step-1; }
-.fold-demo-reveal .step:nth-child(3) { animation-name: fold-step-2; }
-.fold-demo-reveal .step:nth-child(5) { animation-name: fold-step-3; }
-@keyframes fold-step-1 { 0%, 18% { opacity: 1; } 24%, 100% { opacity: 0.3; } }
-@keyframes fold-step-2 { 0%, 18% { opacity: 0.3; } 24%, 52% { opacity: 1; } 58%, 100% { opacity: 0.3; } }
-@keyframes fold-step-3 { 0%, 52% { opacity: 0.3; } 58%, 96% { opacity: 1; } 100% { opacity: 0.3; } }
 
-/* COMPRESS → OPEN → SETTLE */
-.fold-demo-settle .mark {
-  transform-origin: 50% 50%;
-  animation: fold-settle 5s cubic-bezier(0.65, 0, 0.2, 1) infinite paused;
+/* the curve: across at a steady rate, up on the curve (2.4 s: rest, 1 s move, rest) */
+.fold-curve-x { animation: fold-curve-x 2.4s linear; }
+.fold-curve-y { animation: fold-curve-y 2.4s linear; }
+@keyframes fold-curve-x { 0%, 20.8% { transform: translateX(0); } 62.5%, 100% { transform: translateX(100%); } }
+@keyframes fold-curve-y {
+  0%, 20.8% { transform: translateY(100%); animation-timing-function: var(--move); }
+  62.5%, 100% { transform: translateY(0); }
 }
-.fold-demo-settle .step {
-  animation: fold-step 5s linear infinite paused;
-}
-.fold-demo-settle.is-in .mark,
-.fold-demo-settle.is-in .step {
-  animation-play-state: running;
-}
-@keyframes fold-settle {
-  0%, 12% { transform: scaleX(1); }
-  30%, 42% { transform: scaleX(0.58); }
-  58% { transform: scaleX(1.05); }
-  72%, 100% { transform: scaleX(1); }
-}
-.fold-demo-settle .step:nth-child(1) { animation-name: fold-step-a; }
-.fold-demo-settle .step:nth-child(3) { animation-name: fold-step-b; }
-.fold-demo-settle .step:nth-child(5) { animation-name: fold-step-c; }
-@keyframes fold-step-a { 0%, 14% { opacity: 0.3; } 20%, 42% { opacity: 1; } 48%, 100% { opacity: 0.3; } }
-@keyframes fold-step-b { 0%, 42% { opacity: 0.3; } 48%, 60% { opacity: 1; } 66%, 100% { opacity: 0.3; } }
-@keyframes fold-step-c { 0%, 60% { opacity: 0.3; } 66%, 96% { opacity: 1; } 100% { opacity: 0.3; } }
 
-/* Order ahead: the "it's live" dot, and a touch pulsing where to tap until the app is first used */
+/* Slide (4 s): the front screen is pushed in over the back one, then taken away again */
+.fold-move-card--back { animation: fold-slide-back 4s linear; }
+.fold-move-card--front { animation: fold-slide-front 4s linear; transform: translateX(150%); }
+@keyframes fold-slide-front {
+  0%, 15% { transform: translateX(150%); animation-timing-function: var(--move); }
+  27.5%, 65% { transform: translateX(0); animation-timing-function: var(--move); }
+  77.5%, 100% { transform: translateX(150%); }
+}
+@keyframes fold-slide-back {
+  0%, 15% { transform: none; filter: none; animation-timing-function: var(--move); }
+  27.5%, 65% { transform: translateX(-30%); filter: brightness(0.8); animation-timing-function: var(--move); }
+  77.5%, 100% { transform: none; filter: none; }
+}
+
+/* Turn (4 s): the top-right corner folds back over its crease, uncovering the signal, and
+   unfolds. The flap is the cut-away corner mirrored over the crease. */
+.fold-move-sheet { animation: fold-turn-sheet 4s linear; }
+.fold-move-flap { animation: fold-turn-flap 4s linear; clip-path: polygon(100% 0, 100% 0, 100% 0); }
+@keyframes fold-turn-sheet {
+  0%, 15% { clip-path: polygon(0 0, 100% 0, 100% 0, 100% 100%, 0 100%); animation-timing-function: var(--move); }
+  32.5%, 65% { clip-path: polygon(0 0, 58% 0, 100% 42%, 100% 100%, 0 100%); animation-timing-function: var(--move); }
+  82.5%, 100% { clip-path: polygon(0 0, 100% 0, 100% 0, 100% 100%, 0 100%); }
+}
+@keyframes fold-turn-flap {
+  0%, 15% { clip-path: polygon(100% 0, 100% 0, 100% 0); animation-timing-function: var(--move); }
+  32.5%, 65% { clip-path: polygon(58% 0, 100% 42%, 58% 42%); animation-timing-function: var(--move); }
+  82.5%, 100% { clip-path: polygon(100% 0, 100% 0, 100% 0); }
+}
+
+/* Mask (4.4 s): wiped in from the left, held, wiped off to the right; a signal line rides the
+   edge of the clip while it moves */
+.fold-move-word { animation: fold-mask-word 4.4s linear; clip-path: inset(0 100% 0 0); }
+.fold-move-edge { animation: fold-mask-edge 4.4s linear; opacity: 0; }
+@keyframes fold-mask-word {
+  0%, 9.1% { clip-path: inset(0 100% 0 0); animation-timing-function: var(--move); }
+  27.3%, 68.2% { clip-path: inset(0 0 0 0); animation-timing-function: var(--move); }
+  86.4%, 100% { clip-path: inset(0 0 0 100%); }
+}
+@keyframes fold-mask-edge {
+  0%, 9.1% { transform: translateX(0); opacity: 1; animation-timing-function: var(--move); }
+  27.3% { transform: translateX(100%); opacity: 1; }
+  28%, 67.9% { transform: translateX(100%); opacity: 0; }
+  68.2% { transform: translateX(0); opacity: 1; animation-timing-function: var(--move); }
+  86.4% { transform: translateX(100%); opacity: 1; }
+  87%, 100% { transform: translateX(100%); opacity: 0; }
+}
+
+/* Interactive demo indicator and a touch hint until the prototype is first used. */
 .fold-live {
   animation: fold-live 1.6s ease-in-out infinite;
 }
@@ -222,9 +227,16 @@
     clip-path: none !important;
     transition: none !important;
   }
-  .fold [class*='fold-demo'] * {
+  /* the moves shown at rest, each in its finished state */
+  .fold-motion :is(.fold-curve-x, .fold-curve-y, .fold-move-card, .fold-move-sheet, .fold-move-flap, .fold-move-word, .fold-move-edge) {
     animation: none !important;
   }
+  .fold-curve-x, .fold-curve-y, .fold-move-edge { display: none; }
+  .fold-move-card--front { transform: none; }
+  .fold-move-card--back { transform: translateX(-30%); filter: brightness(0.8); }
+  .fold-move-sheet { clip-path: polygon(0 0, 58% 0, 100% 42%, 100% 100%, 0 100%); }
+  .fold-move-flap { clip-path: polygon(58% 0, 100% 42%, 58% 42%); }
+  .fold-move-word { clip-path: none; }
   .fold [data-scroll] {
     transform: none !important;
   }

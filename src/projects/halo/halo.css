@@ -1,0 +1,171 @@
+/* HALO case study. Scoped under .ha, sized by the project panel (cqw / cqh).
+   Night navy as the ground; cyan and magenta only ever appear as light — glows, rings, active
+   states — never as large flat fills. */
+
+.ha {
+  --night: #0a1124;
+  --deep: #141b31;
+  --raise: #1d2540;
+  --line: rgba(214, 224, 255, 0.12);
+  --text: #eef2ff;
+  --mute: rgba(238, 242, 255, 0.56);
+  --cyan: #2dd4c8;
+  --magenta: #c0168f;
+  --win: #7ce38b;
+  --alert: #ff5a5f;
+  background: var(--night);
+  color: var(--text);
+  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Archivo at its narrowest and heaviest: headlines, numbers, the name */
+.ha-display {
+  font-family: Archivo, 'Inter', sans-serif;
+  font-weight: 800;
+  font-stretch: 62%;
+  font-variation-settings: 'wdth' 62;
+  text-transform: uppercase;
+  line-height: 0.9;
+  letter-spacing: -0.005em;
+}
+.ha-mono {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.ha-mute {
+  color: var(--mute);
+}
+
+/* The light that rises from the bottom of a surface, like a table lit from beneath */
+.ha-glow-cyan {
+  background:
+    radial-gradient(48% 90% at 50% 100%, rgba(45, 212, 200, 0.5) 0%, rgba(45, 212, 200, 0) 100%),
+    var(--night);
+}
+.ha-glow-magenta {
+  background:
+    radial-gradient(48% 90% at 50% 100%, rgba(192, 22, 143, 0.55) 0%, rgba(192, 22, 143, 0) 100%),
+    var(--night);
+}
+
+/* The ring that is the O of the name, and the brand's one symbol */
+.ha-ring {
+  display: inline-block;
+  border-radius: 9999px;
+  border: 0.15em solid var(--cyan);
+  box-shadow:
+    0 0 0.35em rgba(45, 212, 200, 0.75),
+    inset 0 0 0.3em rgba(45, 212, 200, 0.55);
+}
+.ha-ring.is-flat {
+  box-shadow: none;
+}
+
+/* The ring as drawn in the name: a stroke with its own light */
+.ha-ring-svg {
+  filter: drop-shadow(0 0 0.05em rgba(45, 212, 200, 0.9)) drop-shadow(0 0 0.16em rgba(45, 212, 200, 0.55));
+}
+.ha-ring-svg.is-flat {
+  filter: none;
+}
+.ha-letter {
+  display: inline-block;
+}
+
+/* The logo animation: the ring draws itself (1 s), its light comes up, then the letters rise */
+.ha-reveal .ha-ring-path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transition: stroke-dashoffset 1000ms cubic-bezier(0.6, 0, 0.2, 1);
+}
+.ha-reveal .ha-ring-svg:not(.is-flat) {
+  filter: drop-shadow(0 0 0 rgba(45, 212, 200, 0)) drop-shadow(0 0 0 rgba(45, 212, 200, 0));
+  transition: filter 700ms cubic-bezier(0.2, 0.7, 0.2, 1) 850ms;
+}
+.ha-reveal .ha-letter {
+  opacity: 0;
+  transform: translateY(0.22em);
+  transition:
+    opacity 600ms cubic-bezier(0.2, 0.7, 0.2, 1),
+    transform 600ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  transition-delay: calc(1000ms + var(--i, 0) * 90ms);
+}
+.ha-reveal.is-in .ha-ring-path {
+  stroke-dashoffset: 0;
+}
+.ha-reveal.is-in .ha-ring-svg:not(.is-flat) {
+  filter: drop-shadow(0 0 0.05em rgba(45, 212, 200, 0.9)) drop-shadow(0 0 0.16em rgba(45, 212, 200, 0.55));
+}
+.ha-reveal.is-in .ha-letter {
+  opacity: 1;
+  transform: none;
+}
+
+/* Arrival: light rises, nothing flashes */
+.ha-rise {
+  opacity: 0;
+  transform: translateY(22px);
+  transition:
+    opacity 600ms cubic-bezier(0.2, 0.7, 0.2, 1),
+    transform 600ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  transition-delay: var(--d, 0s);
+}
+.ha-rise.is-in {
+  opacity: 1;
+  transform: none;
+}
+
+/* The motion demo: a tile whose light rises and settles, on a loop */
+.ha-light-up {
+  animation: ha-light 3.2s cubic-bezier(0.2, 0.7, 0.2, 1) infinite;
+}
+@keyframes ha-light {
+  0%,
+  12% {
+    box-shadow: 0 0 0 rgba(45, 212, 200, 0);
+    border-color: var(--line);
+  }
+  40%,
+  80% {
+    box-shadow: 0 18px 50px -12px rgba(45, 212, 200, 0.55);
+    border-color: rgba(45, 212, 200, 0.7);
+  }
+  100% {
+    box-shadow: 0 0 0 rgba(45, 212, 200, 0);
+    border-color: var(--line);
+  }
+}
+
+/* A live table's dot: a slow breath, never a blink */
+.ha-live {
+  animation: ha-breathe 2.4s ease-in-out infinite;
+}
+@keyframes ha-breathe {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ha-rise {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+  .ha-light-up,
+  .ha-live {
+    animation: none !important;
+  }
+  .ha-reveal .ha-ring-path {
+    stroke-dashoffset: 0 !important;
+    transition: none !important;
+  }
+  .ha-reveal .ha-letter,
+  .ha-reveal .ha-ring-svg {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+}
