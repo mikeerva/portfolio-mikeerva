@@ -2,7 +2,6 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { useEffect, useState, type CSSProperties } from 'react'
 import { About } from './components/About'
 import { FluidCanvas } from './components/FluidCanvas'
-import { LoadingPage } from './components/LoadingPage'
 import { LogoMark } from './components/LogoMark'
 import { Float } from './components/Float'
 import { Menu } from './components/Menu'
@@ -65,27 +64,24 @@ const heroHover = 'group inline-block'
 const heroLinkClip = 'block overflow-hidden px-3 pt-1 pb-3 -mx-3 -mt-1 -mb-2'
 
 export default function App() {
-  const [loadingComplete, setLoadingComplete] = useState(false)
-  // First appearance: the Hero forms as the loading screen starts to lift. Only once, and not
-  // at all with reduced motion.
+  // The Hero forms immediately on the first visit, unless reduced motion is requested.
   const reduced = useReducedMotion()
   const [intro, setIntro] = useState(() => !reduced)
-  const [entering, setEntering] = useState(false)
   const route = useRoute()
   const inHero = route.view === 'home'
 
-  const begin = () => {
-    setEntering(true)
+  useEffect(() => {
     // Later visits to the Hero just use its usual fade
-    setTimeout(() => setIntro(false), 2600)
-  }
+    const timer = setTimeout(() => setIntro(false), 2600)
+    return () => clearTimeout(timer)
+  }, [])
 
   // Hero type: a short rise into place, revealed by its own clipping box
   const rise = (delay: number) =>
     intro
       ? {
           initial: { y: '110%', opacity: 0 },
-          animate: entering ? { y: '0%', opacity: 1, transition: { duration: 0.75, ease, delay } } : undefined,
+          animate: { y: '0%', opacity: 1, transition: { duration: 0.75, ease, delay } },
         }
       : {}
   // Controls that open overlays only fade, so no transform is ever left on their parents
@@ -93,13 +89,12 @@ export default function App() {
     intro
       ? {
           initial: { opacity: 0 },
-          animate: entering ? { opacity: 1, transition: { duration: 0.8, ease, delay } } : undefined,
+          animate: { opacity: 1, transition: { duration: 0.8, ease, delay } },
         }
       : {}
 
   return (
     <>
-      {!loadingComplete && <LoadingPage onStart={begin} onComplete={() => setLoadingComplete(true)} />}
       <main className="relative h-svh w-full overflow-hidden bg-bg">
         <FluidCanvas mode={route.view} />
 
@@ -125,7 +120,7 @@ export default function App() {
             <motion.div
               key="home"
               initial="hidden"
-              animate={intro && !entering ? 'hidden' : 'shown'}
+              animate="shown"
               exit="hidden"
               className="absolute inset-0 z-[2] flex flex-col items-center justify-center gap-10 px-5 sm:gap-14"
             >

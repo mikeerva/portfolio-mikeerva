@@ -522,7 +522,7 @@ export function FluidCanvas({ mode }: { mode: FluidMode }) {
     let heldAt = ''
     // What the material responds to: while it's held, a change here wakes it
     const inputs = () =>
-      `${modeRef.current}|${object.open}|${object.focus}|${object.progress}|${object.tilt}|${object.hover}|${object.hoverProject}|${object.covered}|${object.menuCovered}|${cw}x${ch}|${fw}`
+      `${modeRef.current}|${object.open}|${object.focus}|${object.progress}|${object.tilt}|${object.hover}|${object.hoverProject}|${object.menuCovered}|${cw}x${ch}|${fw}`
 
     // On touch screens (phones' GPUs), the material is spared whatever can't be seen:
     // - held still once a project or About has opened and settled: only its slow ambient life
@@ -955,10 +955,10 @@ export function FluidCanvas({ mode }: { mode: FluidMode }) {
       gl.uniform1f(uTime, t)
       gl.uniform1f(uFrag, ramp(0.5, 1, split) * (1 - ramp(0.05, 0.4, enter)) * workShare)
       gl.uniform4fv(uBlobs, data)
-      // Hidden under the loading screen or the open menu, it holds its last frame. A few frames
+      // Hidden under the open menu, it holds its last frame. A few frames
       // are always drawn, so the shader is compiled and warm before anything is shown.
       drawn++
-      if (!(object.covered || object.menuCovered) || drawn < 4) {
+      if (!object.menuCovered || drawn < 4) {
         gl.bindFramebuffer(gl.FRAMEBUFFER, fieldFb)
         gl.viewport(0, 0, w, h)
         gl.drawArrays(gl.TRIANGLES, 0, 3)
